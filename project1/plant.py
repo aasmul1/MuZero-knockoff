@@ -35,7 +35,7 @@ class BathtubModel():
         return jnp.sqrt(2 * 9.81 * self.water_height)
         
     def get_flow_rate(self):
-        return self.area_bathtub * self.velocity
+        return self.area_drain * self.velocity
     
     def calculate_output(self, u, disturbance):
         dBt = u + disturbance - self.flow_rate
@@ -53,27 +53,33 @@ class BathtubModel():
         self.flow_rate = self.get_flow_rate()
         self.water_height = self.intial_water_height
 
-# class CournotModel():
-#     def __init__(self, p_max, marginal_cost):
-#         self.p_max = p_max
-#         self.marginal_cost = marginal_cost
-#         self.q1, self.q2 = self.get_amount()
-#         self.q = self.q1 + self.q2
-#         self.actual_price = p_max - self.q
+class CournotModel():
+    def __init__(self, p_max, marginal_cost):
+        self.key = random.PRNGKey(0)
+        self.p_max = p_max
+        self.marginal_cost = marginal_cost
+        self.q1, self.q2 = self.get_random_quantity()
+        self.q = self.q1 + self.q2
+        self.market_price = p_max - self.q
         
-#     def get_amount():
-#         key = random.PRNGKey(0)
-#         random_numbers = random.uniform(key, shape=(2,))
-#         return random_numbers[0], random_numbers[1]
+    def get_random_quantity(self):
+        self.key, subkey = random.split(self.key)
+        return random.uniform(subkey, shape=(2,))
     
-#     def calculate_output(self, u, disturbance):
-#         self.q1 = self.q1 + u
-#         self.q2 = self.q2 + disturbance
-#         self.q = self.q1 + self.q2
-#         self.actual_price = self.p_max - self.q
-#         self.p1_profit = self.q1 * (self.actual_price - self.marginal_cost)
-#         return self.p1_profit
+    def deep_copy(self):
+        return CournotModel(self.p_max, self.marginal_cost)
     
-#     def reset(self):
-#         self.q1, self.q2 = self.get_amount()
-#         self.actual_price = self.p_max - self.q
+    def constraints(self, q):
+        return jnp.clip(q, 0, 1)
+        
+    def calculate_output(self, u, disturbance):
+        self.q1 = self.constraints(self.q1 + u)
+        self.q2 = self.constraints(self.q2 + disturbance)
+        self.q = self.q1 + self.q2
+        self.market_price = self.p_max - self.q
+        self.p1_profit = self.q1 * (self.market_price - self.marginal_cost)
+        return self.p1_profit
+    
+    def reset(self):
+        self.q1, self.q2 = self.get_random_quantity()
+        self.q = self.q1 + self.q2  

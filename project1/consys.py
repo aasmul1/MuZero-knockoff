@@ -10,7 +10,7 @@ Run simulations for epochs and timesteps.
 Handle configurations and logging.'''
 
 from controller import ClassicPIDController, NeuralNetController
-from plant import BathtubModel
+from plant import BathtubModel, CournotModel
 
 
 class ConSysClassic():
@@ -31,6 +31,8 @@ class ConSysClassic():
         
         if self.params["plant"] == "Bathtub":
             return BathtubModel(3.0, 0.01, 15)
+        elif self.params["plant"] == "Cournot":
+            return CournotModel(5, 0.1)
         else:
             raise ValueError("Plant not supported")
         
@@ -55,7 +57,7 @@ class ConSysClassic():
         gradfunc = jax.value_and_grad(mse_fn)
 
         errors = []
-        learning_rate = 0.001
+        learning_rate = 0.01
         params_history = []
 
 
@@ -80,7 +82,7 @@ class ConSysClassic():
     def run_one_epoch(self):
         self.controller.reset()
         control_signal = 0.0
-        target = 15.0
+        target = 0.5
         
         plant = self.plant.deep_copy()
                 
@@ -141,6 +143,8 @@ class ConSysNeural():
         
         if self.params["plant"] == "Bathtub":
             return BathtubModel(1.0, 0.01, 15)
+        elif self.params["plant"] == "Cournot":
+            return CournotModel(5, 0.1)
         else:
             raise ValueError("Plant not supported")
         
@@ -163,6 +167,7 @@ class ConSysNeural():
         params = self.controller.initialize_params()
         # Prepare gradient function
         
+
         gradfunc = jax.value_and_grad(mse_fn)
 
         errors = []
@@ -170,7 +175,10 @@ class ConSysNeural():
 
 
         for _ in range(40):
+
             avg_mse, grads = gradfunc(params)
+            params = self.controller.update_params(grads)
+
 
             errors.append(avg_mse)
             
@@ -179,6 +187,7 @@ class ConSysNeural():
 
             # Update parameters using gradient descent
             params = self.controller.update_params(grads)
+            self.controller.params = params  # Store back in the controller
 
 
         return errors, params_history
@@ -187,7 +196,7 @@ class ConSysNeural():
     def run_one_epoch(self, params):
         self.controller.reset()
         control_signal = 0.0
-        target = 15.0
+        target = 0.5
         
         plant = self.plant.deep_copy()
                 
@@ -197,7 +206,7 @@ class ConSysNeural():
         for i in range(timestep):
             output = plant.calculate_output(control_signal, disturbance[i])
             error = target - output
-            control_signal = self.controller.compute_control_signal(error)  
+            control_signal = self.controller.compute_control_signal(error, params)  
             self.controller.update_error_history(error)
             
         mse = self.controller.compute_mse()
@@ -215,6 +224,8 @@ class ConSysNeural():
         plt.title("MSE vs Epochs")
         plt.legend()
         plt.grid()
+        plt.show()
+        
 
         
 
@@ -222,9 +233,9 @@ class ConSysNeural():
         
 if __name__ == "__main__":
     params = {
-        "plant": "Bathtub",
+        "plant": "Cournot",
         "controller": "NeuralNet",
     }
     consys = ConSysNeural(params)
     mse, params_history = consys.run_system()  # Capture both MSE and parameter history
-    consys.plot_results(mse, params_history)
+    consys.plot_results(mse)

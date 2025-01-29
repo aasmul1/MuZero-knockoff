@@ -5,6 +5,7 @@ Traditional PID controller: Update using the three parameters (kp, ki, kd).
 AI-based controller: Neural network implementation using JAX'''
 
 from jax import random
+import jax
 import jax.numpy as jnp
 
         
@@ -40,7 +41,7 @@ class NeuralNetController():
     
     def __init__(self):
         self.hidden_layers = [4, 2]
-        self.activation_layers = ["relu", "relu"]
+        self.activation_layers = ["tanh", "tanh"]
         self.params = {}
         self.initialize_params()
         self.initialize_activation_functions()
@@ -51,14 +52,14 @@ class NeuralNetController():
         
         for i, layer_neurons in enumerate(self.hidden_layers):
             w_key, b_key = random.split(keys[i])
-            self.params[f"W{i}"] = random.uniform(w_key, (input_dim, layer_neurons))
-            self.params[f"b{i}"] = random.uniform(b_key, (layer_neurons,))
+            self.params[f"W{i}"] = random.uniform(w_key, (input_dim, layer_neurons), minval=-0.1, maxval=0.1)
+            self.params[f"b{i}"] = random.uniform(b_key, (layer_neurons,), minval=0, maxval=0.1)
             
             input_dim = layer_neurons
             
         w_key, b_key = random.split(keys[-1])
-        self.params[f"W{len(self.hidden_layers)}"] = random.uniform(w_key, (input_dim, 1))
-        self.params[f"b{len(self.hidden_layers)}"] = random.uniform(b_key, (1,))    
+        self.params[f"W{len(self.hidden_layers)}"] = random.uniform(w_key, (input_dim, 1), minval=-0.1, maxval=0.1 )
+        self.params[f"b{len(self.hidden_layers)}"] = random.uniform(b_key, (1,), minval=0, maxval=0.1)    
         return self.params    
             
     
@@ -104,22 +105,26 @@ class NeuralNetController():
         x = jnp.dot(x, weights) + biases
         return x
     
-    def compute_control_signal(self, error):
+    def compute_control_signal(self, error, params):
         dEdt = error - self.error_history[-1] if len(self.error_history) > 0 else 0.0
         integral = jnp.sum(jnp.array(self.error_history))
-        output = self.forward(jnp.array([error, dEdt, integral]), self.params)
-        print("Output:", output)
-        return output
+        output = self.forward(jnp.array([[error, dEdt, integral]]), params)
+        return output.squeeze()
     
-    def update_params(self, params):
+   
+    
+    def update_params(self, grads):
+        new_params = {}
+        grads = jax.tree_map(lambda g: jnp.clip(g, -1.0, 1.0), grads)
+
+        learning_rate = 0.01  
         for i in range(len(self.hidden_layers)):
-            weights = params[f"W{i}"]
-            biases = params[f"b{i}"]
-            self.params[f"W{i}"] -= 0.01 * weights
-            self.params[f"b{i}"] -= 0.01 * biases
-        weights = params[f"W{len(self.hidden_layers)}"]
-        self.params[f"W{len(self.hidden_layers)}"] -= 0.01 * weights
-        biases = params[f"b{len(self.hidden_layers)}"]
-        self.params[f"b{len(self.hidden_layers)}"] -= 0.01 * biases
-        return params
+            new_params[f"W{i}"] = self.params[f"W{i}"] - learning_rate * grads[f"W{i}"]
+            new_params[f"b{i}"] = self.params[f"b{i}"] - learning_rate * grads[f"b{i}"]
+        new_params[f"W{len(self.hidden_layers)}"] = self.params[f"W{len(self.hidden_layers)}"] - learning_rate * grads[f"W{len(self.hidden_layers)}"]
+        new_params[f"b{len(self.hidden_layers)}"] = self.params[f"b{len(self.hidden_layers)}"] - learning_rate * grads[f"b{len(self.hidden_layers)}"]
+
+        return new_params
+
+
             
