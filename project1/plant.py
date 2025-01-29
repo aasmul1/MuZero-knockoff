@@ -53,9 +53,8 @@ class BathtubModel():
         self.flow_rate = self.get_flow_rate()
         self.water_height = self.intial_water_height
 
-# class CournotModel(Plant):
+# class CournotModel():
 #     def __init__(self, p_max, marginal_cost):
-#         super().__init__()
 #         self.p_max = p_max
 #         self.marginal_cost = marginal_cost
 #         self.q1, self.q2 = self.get_amount()

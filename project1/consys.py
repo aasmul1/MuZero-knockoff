@@ -1,5 +1,5 @@
 import jax
-from jax import random
+from jax import random, tree_map
 import matplotlib.pyplot as plt
 import tqdm as tqdm
 import jax.numpy as jnp
@@ -9,11 +9,11 @@ Initialize the plant and controller.
 Run simulations for epochs and timesteps.
 Handle configurations and logging.'''
 
-from controller import ClassicPIDController
+from controller import ClassicPIDController, NeuralNetController
 from plant import BathtubModel
 
 
-class ConSys():
+class ConSysClassic():
     def __init__(self, params):
         self.params = params
         self.controller = self.initialize_controller()
@@ -30,7 +30,7 @@ class ConSys():
     def initialize_plant(self):
         
         if self.params["plant"] == "Bathtub":
-            return BathtubModel(1.0, 0.01, 15)
+            return BathtubModel(3.0, 0.01, 15)
         else:
             raise ValueError("Plant not supported")
         
@@ -51,7 +51,6 @@ class ConSys():
 
         # Initialize parameters
         params = jnp.array([self.controller.kp, self.controller.ki, self.controller.kd])
-        print(params)
         # Prepare gradient function
         gradfunc = jax.value_and_grad(mse_fn)
 
@@ -62,7 +61,6 @@ class ConSys():
 
         for _ in range(40):
             avg_mse, grads = gradfunc(params)
-            #grads = jnp.clip(grads, -1.0, 1.0)
 
             errors.append(avg_mse)
             
@@ -124,16 +122,108 @@ class ConSys():
 
         plt.tight_layout()
         plt.show()
+
+class ConSysNeural():
+    def __init__(self, params):
+        self.params = params
+        self.controller = self.initialize_controller()
+        self.plant = self.initialize_plant()
+        self.key = random.PRNGKey(0)
         
+    def initialize_controller(self):
+        
+        if self.params["controller"] == "NeuralNet":
+            return NeuralNetController()
+        else:
+            raise ValueError("Controller not supported")
+        
+    def initialize_plant(self):
+        
+        if self.params["plant"] == "Bathtub":
+            return BathtubModel(1.0, 0.01, 15)
+        else:
+            raise ValueError("Plant not supported")
+        
+    def get_disturbance(self):
+        min_val = -0.01
+        max_val = 0.01
+        self.key, subkey = random.split(self.key)
+
+        return random.uniform(
+            key=subkey, minval=min_val, maxval=max_val
+        )    
+        
+    def run_system(self):
+        def mse_fn(params):
+            """Compute MSE for the current neural network parameters."""
+            self.controller.params = params  # Update neural network parameters
+            ans = self.run_one_epoch(params)
+            print(ans)
+            return ans
+
+        # Initialize parameters (weights and biases of the neural network)
+        params = self.controller.get_params()
+
+        # Prepare gradient function
+        gradfunc = jax.value_and_grad(mse_fn)
+
+        errors = []
+        params_history = []
+
+        for i in range(1):
+            avg_mse, grads = gradfunc(params)
+            print(f"Average MSE: {avg_mse}")
+            print(f"Gradients: {grads}")
+
+
+            errors.append(avg_mse)
+            params_history.append(params)
+
+            self.controller.update_params(grads)  # Update controller with new parameters
+
+        return errors, params_history
+    
+    
+    def run_one_epoch(self, params):
+        self.controller.reset()
+        control_signal = 0.0
+        target = 15.0
+        
+        plant = self.plant.deep_copy()
+                
+        timestep = 25
+        disturbance = jnp.array([self.get_disturbance() for _ in range(timestep)])
+        
+        for i in range(timestep):
+            output = plant.calculate_output(control_signal, disturbance[i])
+            error = target - output
+            control_signal = self.controller.compute_control_signal(error, params)  
+            self.controller.update_error_history(error)
+            
+        mse = self.controller.compute_mse()
+        
+        return mse
+    
+    def plot_results(self, mse):
+        # Plot MSE vs Epochs
+        plt.figure(figsize=(12, 6))
+        plt.subplot(2, 1, 1)
+        plt.plot(mse, label="MSE")
+        plt.xlabel("Epochs")
+        plt.ylabel("MSE")
+        plt.title("MSE vs Epochs")
+        plt.legend()
+        plt.grid()
+
+        
+
         
         
 if __name__ == "__main__":
     params = {
         "plant": "Bathtub",
-        "controller": "ClassicPID"
+        "controller": "NeuralNet",
     }
-    consys = ConSys(params)
+    consys = ConSysNeural(params)
     mse, params_history = consys.run_system()  # Capture both MSE and parameter history
-    consys.plot_results(mse, params_history) 
-    
-    
+    consys.plot_results(mse, params_history)
