@@ -155,31 +155,31 @@ class ConSysNeural():
         
     def run_system(self):
         def mse_fn(params):
-            """Compute MSE for the current neural network parameters."""
-            self.controller.params = params  # Update neural network parameters
-            ans = self.run_one_epoch(params)
-            print(ans)
-            return ans
+            """Wrapper function for MSE calculation with given parameters."""
+            return self.run_one_epoch(params)
 
-        # Initialize parameters (weights and biases of the neural network)
-        params = self.controller.get_params()
-
+        self.controller.reset()
+        self.controller.initialize_activation_functions()
+        params = self.controller.initialize_params()
         # Prepare gradient function
+        
         gradfunc = jax.value_and_grad(mse_fn)
 
         errors = []
         params_history = []
 
-        for i in range(1):
-            avg_mse, grads = gradfunc(params)
-            print(f"Average MSE: {avg_mse}")
-            print(f"Gradients: {grads}")
 
+        for _ in range(40):
+            avg_mse, grads = gradfunc(params)
 
             errors.append(avg_mse)
+            
             params_history.append(params)
 
-            self.controller.update_params(grads)  # Update controller with new parameters
+
+            # Update parameters using gradient descent
+            params = self.controller.update_params(grads)
+
 
         return errors, params_history
     
@@ -197,12 +197,13 @@ class ConSysNeural():
         for i in range(timestep):
             output = plant.calculate_output(control_signal, disturbance[i])
             error = target - output
-            control_signal = self.controller.compute_control_signal(error, params)  
+            control_signal = self.controller.compute_control_signal(error)  
             self.controller.update_error_history(error)
             
         mse = self.controller.compute_mse()
         
         return mse
+
     
     def plot_results(self, mse):
         # Plot MSE vs Epochs

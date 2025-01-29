@@ -38,36 +38,31 @@ class ClassicPIDController():
 
 class NeuralNetController():
     
-    def __init__(self):      
-   
-        self.hidden_layers = [3, 2]
-        self.activation_layers = ["tanh", "tanh"]
+    def __init__(self):
+        self.hidden_layers = [4, 2]
+        self.activation_layers = ["relu", "relu"]
         self.params = {}
-        self.initialize_params({"min": -0.1, "max": 0.1}, {"min": 0, "max": 0.1})
-        self.initialize_activation_layers()
-        
-    def initialize_params(self, weights_range, biases_range):
-        
-        keys = random.split(random.PRNGKey(0), len(self.hidden_layers) + 1)
+        self.initialize_params()
+        self.initialize_activation_functions()
+    
+    def initialize_params(self):
         input_dim = 3
+        keys = random.split(random.PRNGKey(0), len(self.hidden_layers) + 1)
         
         for i, layer_neurons in enumerate(self.hidden_layers):
             w_key, b_key = random.split(keys[i])
-            self.params[f'layer_{i}'] = {
-            "weights": random.uniform(w_key, (input_dim, layer_neurons), minval=weights_range["min"], maxval=weights_range["max"]),
-            "biases": random.uniform(b_key, (layer_neurons,), minval=biases_range["min"], maxval=biases_range["max"]),
-        }
+            self.params[f"W{i}"] = random.uniform(w_key, (input_dim, layer_neurons))
+            self.params[f"b{i}"] = random.uniform(b_key, (layer_neurons,))
+            
             input_dim = layer_neurons
             
         w_key, b_key = random.split(keys[-1])
-        self.params[f'layer_{len(self.hidden_layers)}'] = {
-        "weights": random.uniform(w_key, (input_dim, 1), minval=weights_range["min"], maxval=weights_range["max"]),
-        "biases": random.uniform(b_key, (1,), minval=biases_range["min"], maxval=biases_range["max"]),
-    }
-        
+        self.params[f"W{len(self.hidden_layers)}"] = random.uniform(w_key, (input_dim, 1))
+        self.params[f"b{len(self.hidden_layers)}"] = random.uniform(b_key, (1,))    
+        return self.params    
+            
     
-        
-    def initialize_activation_layers(self):
+    def initialize_activation_functions(self):
         activation_functions = []
         for i in self.activation_layers:
             if i == 'relu':
@@ -80,12 +75,14 @@ class NeuralNetController():
                 raise ValueError("Activation function not supported")
         self.activation_functions = activation_functions
         
+    def update_error_history(self, error):
+        self.error_history.append(error)
+        
+    def reset(self):
+        self.error_history = []
+    
     def compute_mse(self):
         return jnp.mean(jnp.array(self.error_history)**2)
-    
-    def get_params(self):
-        
-        return self.params
                 
     def relu(self, x):
         return jnp.maximum(0, x)
@@ -96,47 +93,33 @@ class NeuralNetController():
     def tanh(self, x):
         return jnp.tanh(x)
     
-    def dot(self, x, w, b):
-        return jnp.dot(x, w) + b
-    
     def forward(self, x, params):
-        # 1) Pass x through each hidden layer in turn
         for i in range(len(self.hidden_layers)):
-            layer = params[f'layer_{i}']
-            x = self.activation_functions[i](self.dot(x, layer["weights"], layer["biases"]))
-
-        # 2) After the loop, pass x through the final (output) layer exactly once
-        out_layer = params[f'layer_{len(self.hidden_layers)}']
-        x = self.dot(x, out_layer["weights"], out_layer["biases"])
-        print("Forward Output:", x[0])
-        return x[0]
+            weights = params[f"W{i}"]
+            biases = params[f"b{i}"]
+            x = jnp.dot(x, weights) + biases
+            x = self.activation_functions[i](x)
+        weights = params[f"W{len(self.hidden_layers)}"]
+        biases = params[f"b{len(self.hidden_layers)}"]
+        x = jnp.dot(x, weights) + biases
+        return x
     
-    def compute_control_signal(self, error, params):
+    def compute_control_signal(self, error):
         dEdt = error - self.error_history[-1] if len(self.error_history) > 0 else 0.0
         integral = jnp.sum(jnp.array(self.error_history))
-        nn_input = jnp.array([error, dEdt, integral])
-        print("NN Input:", nn_input)
-        nn_output = self.forward(nn_input, params)
-        print("NN Output:", nn_output)
-        return nn_output
+        output = self.forward(jnp.array([error, dEdt, integral]), self.params)
+        print("Output:", output)
+        return output
     
-    def reset(self):
-        """
-        Resets the controller's error history.
-        """
-        self.error_history = []
-        
-    def update_error_history(self, error):
-        
-        self.error_history.append(error)
-        
-    def update_params(self, grads):
-    # For each layer
-        for layer_key in self.params.keys():
-            # self.params[layer_key] is also a dict: {"weights": ..., "biases": ...}
-            # grads[layer_key] is also a dict: {"weights": ..., "biases": ...}
-
-            self.params[layer_key]["weights"] -= 0.01 * grads[layer_key]["weights"]
-            self.params[layer_key]["biases"]  -= 0.01 * grads[layer_key]["biases"]
-
-
+    def update_params(self, params):
+        for i in range(len(self.hidden_layers)):
+            weights = params[f"W{i}"]
+            biases = params[f"b{i}"]
+            self.params[f"W{i}"] -= 0.01 * weights
+            self.params[f"b{i}"] -= 0.01 * biases
+        weights = params[f"W{len(self.hidden_layers)}"]
+        self.params[f"W{len(self.hidden_layers)}"] -= 0.01 * weights
+        biases = params[f"b{len(self.hidden_layers)}"]
+        self.params[f"b{len(self.hidden_layers)}"] -= 0.01 * biases
+        return params
+            
