@@ -83,3 +83,34 @@ class CournotModel():
     def reset(self):
         self.q1, self.q2 = self.get_random_quantity()
         self.q = self.q1 + self.q2  
+        
+class FuelTankModel():
+    def __init__(self, fuel_consumption_rate, max_cap, initial_fuel):
+        self.max_capacity = max_cap
+        self.fuel_consumption_rate = fuel_consumption_rate
+        self.initial_fuel = initial_fuel
+        self.fuel = initial_fuel
+        self.key = random.PRNGKey(0)
+        
+    def get_disturbance(self):
+        """
+        Generates a random environmental disturbance (e.g., sudden acceleration).
+        Returns a small random value in the range [-0.5, 0.5] (liters per timestep).
+        """
+        self.key, subkey = random.split(self.key)
+        return random.uniform(subkey, minval=-0.5, maxval=0.5)
+    
+    def calculate_output(self, u, disturbance):
+        
+        consumption = self.fuel_consumption_rate * self.fuel
+        dFdt = u + disturbance - consumption
+        self.fuel = jnp.clip(self.fuel + dFdt, 0, self.max_capacity)
+
+        return self.fuel
+       
+    
+    def deep_copy(self):
+        return FuelTankModel(self.fuel_consumption_rate, self.max_capacity, self.initial_fuel)
+    
+    def reset(self):
+        self.fuel = self.initial_fuel

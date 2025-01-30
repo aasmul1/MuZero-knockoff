@@ -10,7 +10,7 @@ Run simulations for epochs and timesteps.
 Handle configurations and logging.'''
 
 from controller import ClassicPIDController, NeuralNetController
-from plant import BathtubModel, CournotModel
+from plant import BathtubModel, CournotModel, FuelTankModel
 
 
 class ConSysClassic():
@@ -33,6 +33,8 @@ class ConSysClassic():
             return BathtubModel(3.0, 0.01, 15)
         elif self.params["plant"] == "Cournot":
             return CournotModel(5, 0.1)
+        elif self.params["plant"] == "FuelTank":
+            return FuelTankModel(0.01, 10, 5)
         else:
             raise ValueError("Plant not supported")
         
@@ -82,7 +84,7 @@ class ConSysClassic():
     def run_one_epoch(self):
         self.controller.reset()
         control_signal = 0.0
-        target = 0.5
+        target = 7
         
         plant = self.plant.deep_copy()
                 
@@ -145,6 +147,8 @@ class ConSysNeural():
             return BathtubModel(1.0, 0.01, 15)
         elif self.params["plant"] == "Cournot":
             return CournotModel(5, 0.1)
+        elif self.params["plant"] == "FuelTank":
+            return FuelTankModel(0.1, 10, 5)
         else:
             raise ValueError("Plant not supported")
         
@@ -174,7 +178,7 @@ class ConSysNeural():
         params_history = []
 
 
-        for _ in range(40):
+        for _ in range(100):
 
             avg_mse, grads = gradfunc(params)
             params = self.controller.update_params(grads)
@@ -196,7 +200,7 @@ class ConSysNeural():
     def run_one_epoch(self, params):
         self.controller.reset()
         control_signal = 0.0
-        target = 0.5
+        target = 6
         
         plant = self.plant.deep_copy()
                 
@@ -233,7 +237,7 @@ class ConSysNeural():
         
 if __name__ == "__main__":
     params = {
-        "plant": "Cournot",
+        "plant": "FuelTank",
         "controller": "NeuralNet",
     }
     consys = ConSysNeural(params)
