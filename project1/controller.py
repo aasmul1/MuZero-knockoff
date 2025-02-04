@@ -12,24 +12,41 @@ import jax.numpy as jnp
 
 class ClassicPIDController():
     
-    def __init__(self):
-        self.initialize_params(0.1, 0.1, 0.1)
+    def __init__(self, learning_rate):
+        self.params = {}
+        self.learning_rate = learning_rate
+        self.initialize_params()
         
-    def initialize_params(self, kp, ki, kd):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
+    def initialize_params(self):
+        self.params = {
+            "kp": 0.1,
+            "ki": 0.1,
+            "kd": 0.1
+        }
+        return self.params.copy()  # Return a copy to avoid accidental modifications
+
         
     def get_errors(self):
         return self.errors
         
-    def compute_control_signal(self, error):
+    def compute_control_signal(self, error, params):
         dEdt = error - self.errors[-1] if len(self.errors) > 0 else 0
         integral = jnp.sum(jnp.array(self.errors))
-        return self.kp * error + self.ki * integral + self.kd * dEdt
+        return params["kp"] * error + params["ki"] * integral + params["kd"] * dEdt
     
-    def update_error(self, error):
+    def update_error_history(self, error):
         self.errors.append(error)
+            
+    def update_params(self, grads):
+        new_params = self.params.copy()  # Copy to avoid modifying original dict
+
+        new_params["kp"] -= self.learning_rate * grads["kp"]
+        new_params["ki"] -= self.learning_rate * grads["ki"]
+        new_params["kd"] -= self.learning_rate * grads["kd"]
+
+        return new_params  # Always return a dictionary
+
+            
         
     def compute_mse(self):
         return jnp.mean(jnp.array(self.errors)**2)
@@ -39,9 +56,10 @@ class ClassicPIDController():
 
 class NeuralNetController():
     
-    def __init__(self):
-        self.hidden_layers = [4, 2]
-        self.activation_layers = ["tanh", "tanh"]
+    def __init__(self, hidden_layers, activation_layers, learning_rate):   
+        self.hidden_layers = hidden_layers
+        self.activation_layers = activation_layers
+        self.learning_rate = learning_rate  
         self.params = {}
         self.initialize_params()
         self.initialize_activation_functions()
@@ -110,21 +128,36 @@ class NeuralNetController():
         integral = jnp.sum(jnp.array(self.error_history))
         output = self.forward(jnp.array([[error, dEdt, integral]]), params)
         return output.squeeze()
-    
-   
-    
-    def update_params(self, grads):
+
+
+    def update_params(self, grads, bias_range, weight_range):
         new_params = {}
+
         grads = jax.tree_map(lambda g: jnp.clip(g, -1.0, 1.0), grads)
 
-        learning_rate = 0.01  
-        for i in range(len(self.hidden_layers)):
-            new_params[f"W{i}"] = self.params[f"W{i}"] - learning_rate * grads[f"W{i}"]
-            new_params[f"b{i}"] = self.params[f"b{i}"] - learning_rate * grads[f"b{i}"]
-        new_params[f"W{len(self.hidden_layers)}"] = self.params[f"W{len(self.hidden_layers)}"] - learning_rate * grads[f"W{len(self.hidden_layers)}"]
-        new_params[f"b{len(self.hidden_layers)}"] = self.params[f"b{len(self.hidden_layers)}"] - learning_rate * grads[f"b{len(self.hidden_layers)}"]
+        num_layers = len(self.hidden_layers)
+        
+        weight_range = tuple(sorted(weight_range))
+        bias_range = tuple(sorted(bias_range))
 
+        
+        for i in range(num_layers):
+            updated_weight = self.params[f"W{i}"] - self.learning_rate * grads[f"W{i}"]
+            new_params[f"W{i}"] = jnp.clip(updated_weight, weight_range[0], weight_range[1])
+            
+            # Oppdater biasverdiene og klipp til bias_range
+            updated_bias = self.params[f"b{i}"] - self.learning_rate * grads[f"b{i}"]
+            new_params[f"b{i}"] = jnp.clip(updated_bias, bias_range[0], bias_range[1])
+        
+        # For output-laget (forutsatt at output-laget følger etter de skjulte lagene)
+        updated_weight = self.params[f"W{num_layers}"] - self.learning_rate * grads[f"W{num_layers}"]
+        new_params[f"W{num_layers}"] = jnp.clip(updated_weight, weight_range[0], weight_range[1])
+        
+        updated_bias = self.params[f"b{num_layers}"] - self.learning_rate * grads[f"b{num_layers}"]
+        new_params[f"b{num_layers}"] = jnp.clip(updated_bias, bias_range[0], bias_range[1])
+        
         return new_params
+
 
 
             
