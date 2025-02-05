@@ -1,5 +1,3 @@
-'''Store all configuration parameters.
-Include options like plant type, controller type, learning rate, number of timesteps, etc.'''
 consys_params = {
     "epochs": 70, 
     "timesteps": 25, 
