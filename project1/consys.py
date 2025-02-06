@@ -87,14 +87,16 @@ class ConSys():
         else:
             raise ValueError(f"Ukjent plant: {self.params['plant']}")
         
-    def get_disturbance(self):
+    def get_disturbance(self, range):
         """
         Generate a small random disturbance in the range [-0.01, 0.01].
 
         Returns:
             float: A random disturbance value.
         """
-        min_val, max_val = -0.01, 0.01
+        new_range = tuple(sorted(range))
+
+        min_val, max_val = new_range[0], new_range[1]
         self.key, subkey = random.split(self.key)
         return random.uniform(subkey, minval=min_val, maxval=max_val)
 
@@ -169,7 +171,7 @@ class ConSys():
         plant = self.plant.deep_copy()
                 
         timestep = consys_params["timesteps"]
-        disturbance = jnp.array([self.get_disturbance() for _ in range(timestep)])
+        disturbance = jnp.array([self.get_disturbance(consys_params["disturbance_range"]) for _ in range(timestep)])
         
         for i in range(timestep):
             output = plant.calculate_output(control_signal, disturbance[i])
