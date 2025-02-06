@@ -2,7 +2,7 @@ from jax import random
 import jax
 import jax.numpy as jnp
 
-class ClassicPIDController():
+class ClassicPIDController:
     """
     A simple, discrete-time PID controller with a gradient-based parameter update rule.
 

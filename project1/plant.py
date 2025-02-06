@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from jax import random
 
-class BathtubModel():
+class BathtubModel:
     """
     A discrete-time simulation of water height in a bathtub model.
     
