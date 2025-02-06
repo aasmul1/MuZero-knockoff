@@ -119,7 +119,7 @@ class NeuralNetController():
         error_history (list): A record of past errors to compute derivative and integral terms.
     """
 
-    def __init__(self, hidden_layers, activation_layers, learning_rate):
+    def __init__(self, hidden_layers, activation_layers, learning_rate, weight_range, bias_range):
         """
         Initialize the neural network controller with given architecture and learning rate,
         then create default parameter values and activation functions.
@@ -134,11 +134,11 @@ class NeuralNetController():
         self.learning_rate = learning_rate
         self.params = {}
         
-        self.initialize_params()
+        self.initialize_params(weight_range, bias_range)
         self.initialize_activation_functions()
         self.reset()
     
-    def initialize_params(self):
+    def initialize_params(self, weight_range, bias_range):
         """
         Create weight and bias matrices for each layer (including the output layer),
         storing them in self.params.
@@ -146,13 +146,15 @@ class NeuralNetController():
         Returns:
             dict: A dictionary containing "W0", "b0", ..., "Wn", "bn" for n layers.
         """
-        input_dim = 3  # The network input: [error, derivative, integral]
+        input_dim = 3  
         keys = random.split(random.PRNGKey(0), len(self.hidden_layers) + 1)
+        weight_range = tuple(sorted(weight_range))
+        bias_range = tuple(sorted(bias_range))
         
         for i, layer_neurons in enumerate(self.hidden_layers):
             w_key, b_key = random.split(keys[i])
-            self.params[f"W{i}"] = random.uniform(w_key, (input_dim, layer_neurons), minval=-0.1, maxval=0.1)
-            self.params[f"b{i}"] = random.uniform(b_key, (layer_neurons,), minval=0, maxval=0.1)
+            self.params[f"W{i}"] = random.uniform(w_key, (input_dim, layer_neurons), minval=weight_range[0], maxval=weight_range[1])
+            self.params[f"b{i}"] = random.uniform(b_key, (layer_neurons,), minval=bias_range[0], maxval=bias_range[1])
             input_dim = layer_neurons
             
         w_key, b_key = random.split(keys[-1])

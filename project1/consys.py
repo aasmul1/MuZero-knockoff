@@ -48,7 +48,9 @@ class ConSys():
             return NeuralNetController(
                 hidden_layers=neural_network_params["hidden_layers"], 
                 activation_layers=neural_network_params["activation_layers"], 
-                learning_rate=consys_params["learning_rate"]
+                learning_rate=consys_params["learning_rate"],
+                weight_range=neural_network_params["weight_range"],
+                bias_range=neural_network_params["bias_range"]
             )
         elif self.params["controller"] == "ClassicPIDController":
             return ClassicPIDController(consys_params["learning_rate"])
@@ -119,7 +121,7 @@ class ConSys():
         if isinstance(self.controller, ClassicPIDController):
             params = self.controller.initialize_params()
         else:
-            params = self.controller.initialize_params()
+            params = self.controller.initialize_params(neural_network_params["weight_range"], neural_network_params["bias_range"])
 
         gradfunc = jax.value_and_grad(mse_fn)
         errors = []

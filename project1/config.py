@@ -2,8 +2,8 @@ consys_params = {
     "epochs": 70, 
     "timesteps": 25, 
     "disturbance_range": {-0.01, 0.01},
-    "controller": "NeuralNetController", 
-    "plant": "FuelTank",
+    "controller": "ClassicPIDController", 
+    "plant": "Bathtub",
     "learning_rate": 0.01
     }
 
