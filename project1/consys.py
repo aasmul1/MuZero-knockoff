@@ -1,7 +1,6 @@
 import jax
 from jax import random, tree_map
 import matplotlib.pyplot as plt
-import tqdm as tqdm
 import jax.numpy as jnp
 
 # Controllers and plants imported from other modules
@@ -9,7 +8,7 @@ from controller import ClassicPIDController, NeuralNetController
 from plant import BathtubModel, CournotModel, FuelTankModel
 from config import consys_params, neural_network_params, bathtub_params, cournot_params, fuelTank_params
 
-class ConSys():
+class ConSys:
     """
     A generic control system class that sets up and runs simulations using
     a chosen controller (PID or neural net) and a chosen plant (Bathtub, Cournot, or FuelTank).
@@ -223,4 +222,3 @@ if __name__ == "__main__":
     consys = ConSys(consys_params)
     mse, params_history = consys.run_system()
     consys.plot_results(mse, params_history)
-
