@@ -1,49 +1,50 @@
 from abc import ABC, abstractmethod
+from typing import Dict, Tuple, Any, Union, List
 import numpy as np
 
 class Model(ABC):
     """
-    abstrakt grensesnitt for modeller som brukes i tree-search algoritmer
-    dette lar oss bytte mellom perfekte simulator-modeller (for MCTS) 
-    og lærte modeller (for MuZero)
+    Abstrakt grensesnitt for modeller som brukes i tree-search algoritmer.
+    Dette lar oss bytte mellom perfekte simulator-modeller (for MCTS) 
+    og lærte modeller (for MuZero).
     """
     
     @abstractmethod
-    def represent_state(self, observation):
+    def represent_state(self, observation: np.ndarray) -> np.ndarray:
         """
-        konverterer en faktisk observasjon fra miljøet til en abstrakt tilstandsrepresentasjon
+        Konverterer en faktisk observasjon fra miljøet til en abstrakt tilstandsrepresentasjon.
         
-        args:
-            observation: den faktiske observasjonen fra miljøet
+        Args:
+            observation: Den faktiske observasjonen fra miljøet
             
-        returns:
-            en abstrakt tilstandsrepresentasjon
+        Returns:
+            En abstrakt tilstandsrepresentasjon
         """
         pass
     
     @abstractmethod
-    def transition(self, abstract_state, action):
+    def transition(self, abstract_state: np.ndarray, action: int) -> Tuple[np.ndarray, float]:
         """
-        forutsier neste abstrakte tilstand og belønning etter å ha utført en handling
+        Forutsier neste abstrakte tilstand og belønning etter å ha utført en handling.
         
-        args:
-            abstract_state: den nåværende abstrakte tilstanden
-            action: handlingen som skal utføres
+        Args:
+            abstract_state: Den nåværende abstrakte tilstanden
+            action: Handlingen som skal utføres
             
-        returns:
+        Returns:
             (next_abstract_state, reward)
         """
         pass
     
     @abstractmethod
-    def predict(self, abstract_state):
+    def predict(self, abstract_state: np.ndarray) -> Tuple[Dict[int, float], float]:
         """
-        forutsier policy og value for en gitt abstrakt tilstand
+        Forutsier policy og value for en gitt abstrakt tilstand.
         
-        args:
-            abstract_state: den abstrakte tilstanden som skal evalueres
+        Args:
+            abstract_state: Den abstrakte tilstanden som skal evalueres
             
-        returns:
+        Returns:
             (policy, value) hvor:
             - policy er en sannsynlighetsfordeling over handlinger
             - value er den forventede fremtidige diskonterte avkastningen fra denne tilstanden

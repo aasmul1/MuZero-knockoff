@@ -1,7 +1,7 @@
 import argparse
 #from rl_manager import RLManager
 from snake_game_state_manager import SnakeGameStateManager
-#from catch_game_state_manager import CatchGameStateManager
+from catch_game_state_manager import CatchGameStateManager
 from visualizer import GameVisualizer
 import test_games
 
@@ -28,15 +28,15 @@ def main():
     
     # lag game state manager basert på valgt game
     if args.game == 'snake':
-        game_state_manager = SnakeGameStateManager(grid_size=10, grow_on_food=True)
-    # else:
-    #     game_state_manager = CatchGameStateManager(grid_width=10, grid_height=10)
+        game_state_manager = SnakeGameStateManager(grid_size=5, grow_on_food=True)
+    else:
+        game_state_manager = CatchGameStateManager(grid_width=5, grid_height=5)
     
     # # lag visualizer
     visualizer = GameVisualizer(game_type=args.game)
     
-    # # lag RL-manager og train/test
-    # rl_manager = RLManager(game_state_manager, visualizer)
+    # lag RL-manager og train/test
+    #rl_manager = RLManager(game_state_manager, visualizer)
     
     # if args.mode == 'train':
     #     rl_manager.train(args.episodes, visualize=args.visualize)

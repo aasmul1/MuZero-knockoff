@@ -1,7 +1,6 @@
 from snake import SnakeGame
 from generic_game_state_manager import GameStateManager
 
-
 import numpy as np
 
 

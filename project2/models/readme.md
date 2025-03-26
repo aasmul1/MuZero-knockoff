@@ -29,11 +29,29 @@ For å bruke en modell med MCTS, bare opprett en instans av modellen og send den
 
 ```python
 # For perfekt modell
-simulator = GameSimulator()  # dette må implementeres TODO!!
-model = PerfectModel(simulator)
+from models.perfect_model import PerfectModel
+from games.snake_game_state_manager import SnakeGameStateManager
+from mcts.mcts import MCTS  # Du må implementere dette
+
+# Opprett game state manager
+snake_gsm = SnakeGameStateManager(grid_size=10, grow_on_food=True)
+
+# Opprett perfekt modell
+model = PerfectModel(snake_gsm)
+
+# Opprett MCTS med modellen
 mcts = MCTS(model, num_simulations=800)
 
+# Bruk MCTS til å finne beste handling
+initial_state = snake_gsm.generate_initial_state()
+best_action = mcts.search(initial_state)
+
+
+
+
+
 # For MuZero
+### DETTE ER FORTSATT TENTATIVT ###
 repr_net = RepresentationNetwork()  # dette må implementeres TODO!!
 dyn_net = DynamicsNetwork()  # dette må implementeres TODO!!
 pred_net = PredictionNetwork()  # dette må implementeres TODO!!

@@ -99,10 +99,12 @@ class SnakeGame:
             self.score += 1
             reward = 10
             self.spawn_fruit()
-        else:
-            # fjern halen hvis ikke voksende
-            if not self.grow_on_food or new_head != self.fruit:
+            # Bare behold halen hvis grow_on_food er True
+            if not self.grow_on_food:
                 self.snake.pop()
+        else:
+            # Alltid fjern halen hvis ikke frukt er spist
+            self.snake.pop()
             reward = 0
         
         self.update_grid()

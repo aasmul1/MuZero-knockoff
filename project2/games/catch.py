@@ -1,25 +1,25 @@
 import numpy as np
 
 class CatchGame:
-    def __init__(self, grid_width=10, grid_height=10, paddle_size=3):
-        """Initialize the game state."""
+    def __init__(self, grid_width=10, grid_height=10, paddle_size=1):
+        """initialiser game state"""
         self.width = grid_width
         self.height = grid_height
         self.paddle_size = paddle_size
         self.reset()
         
     def reset(self):
-        """Reset the game to initial state."""
-        # Empty grid
+        """resett spillet til initial state"""
+        # tomt grid
         self.grid = np.zeros((self.height, self.width))
         
-        # Place paddle at bottom center
+        # plasser paddle nederst i midten
         self.paddle_pos = self.width // 2 - self.paddle_size // 2
         self.update_paddle()
         
-        # Initialize fruit at random position at top
+        # initialiser frukt på tilfeldig posisjon på toppen
         self.fruit_pos = [0, np.random.randint(0, self.width)]
-        self.grid[self.fruit_pos[0], self.fruit_pos[1]] = 2  # 2 represents fruit
+        self.grid[self.fruit_pos[0], self.fruit_pos[1]] = 2  # 2 representerer frukt
         
         self.score = 0
         self.game_over = False
@@ -27,48 +27,48 @@ class CatchGame:
         return self.get_state()
     
     def update_paddle(self):
-        """Update paddle position on grid."""
-        # Clear bottom row
+        """oppdater paddle posisjon på grid"""
+        # tøm nederste rad
         self.grid[self.height-1, :] = 0
         
-        # Place paddle
+        # plasser paddle
         for i in range(self.paddle_size):
             if 0 <= self.paddle_pos + i < self.width:
-                self.grid[self.height-1, self.paddle_pos + i] = 1  # 1 represents paddle
+                self.grid[self.height-1, self.paddle_pos + i] = 1  # 1 representerer paddle
     
     def get_state(self):
-        """Return current state representation for agent."""
+        """returner nåværende state representasjon for agent"""
         return self.grid.copy()
     
     def get_legal_actions(self):
-        """Return list of legal actions."""
+        """returner liste av lovlige actions"""
         actions = []
         if self.paddle_pos > 0:
-            actions.append(0)  # Move left
-        actions.append(1)      # Stay
+            actions.append(0)  # flytt venstre
+        actions.append(1)      # stå stille
         if self.paddle_pos + self.paddle_size < self.width:
-            actions.append(2)  # Move right
+            actions.append(2)  # flytt høyre
         return actions
     
     def step(self, action):
-        """Execute action and return (next_state, reward, done)."""
-        # Move paddle based on action
-        if action == 0 and self.paddle_pos > 0:  # Left
+        """utfør action og returner (next_state, reward, done)"""
+        # flytt paddle basert på action
+        if action == 0 and self.paddle_pos > 0:  # venstre
             self.paddle_pos -= 1
-        elif action == 2 and self.paddle_pos + self.paddle_size < self.width:  # Right
+        elif action == 2 and self.paddle_pos + self.paddle_size < self.width:  # høyre
             self.paddle_pos += 1
-        # Action 1 is stay (no movement)
+        # action 1 er stå stille (ingen bevegelse)
         
         self.update_paddle()
         
-        # Move fruit down
+        # flytt frukt nedover
         self.grid[self.fruit_pos[0], self.fruit_pos[1]] = 0
         self.fruit_pos[0] += 1
         
-        # Check if fruit is at bottom row
+        # sjekk om frukt er i nederste rad
         reward = 0
         if self.fruit_pos[0] == self.height - 1:
-            # Check if fruit is caught by paddle
+            # sjekk om frukt blir fanget av paddle
             if self.paddle_pos <= self.fruit_pos[1] < self.paddle_pos + self.paddle_size:
                 reward = 1
                 self.score += 1
@@ -76,70 +76,70 @@ class CatchGame:
                 reward = -1
                 self.game_over = True
                 
-            # Spawn new fruit at top if game continues
+            # spawn ny frukt på toppen hvis spillet fortsetter
             if not self.game_over:
                 self.fruit_pos = [0, np.random.randint(0, self.width)]
         
-        # Place fruit on grid if game continues
+        # plasser frukt på grid hvis spillet fortsetter
         if not self.game_over:
             self.grid[self.fruit_pos[0], self.fruit_pos[1]] = 2
         
         self.steps += 1
         
-        # Optional: End game after certain number of steps
+        # valgfritt: avslutt spill etter et visst antall steps
         if self.steps >= 100:
             self.game_over = True
             
         return self.get_state(), reward, self.game_over
     
     def render(self, mode='human'):
-        """Render the current game state."""
+        """render nåværende game state"""
         if mode == 'human':
             for row in self.grid:
                 line = ""
                 for cell in row:
                     if cell == 0:
-                        line += "⬛"  # Empty
+                        line += "⬛"  # tomt
                     elif cell == 1:
-                        line += "🟦"  # Paddle
+                        line += "🟦"  # paddle
                     elif cell == 2:
-                        line += "🍎"  # Fruit
+                        line += "🍎"  # frukt
                 print(line)
             print(f"Score: {self.score}")
             print("-" * self.width)
         return self.grid
     
     def manual_play(self):
-        """Allow manual play using keyboard input."""
+        """tillat manuell spilling med tastaturinput"""
         from pynput import keyboard
         
         def on_press(key):
             try:
                 if key == keyboard.Key.left:
-                    self.step(0)  # Left
+                    self.step(0)  # venstre
                 elif key == keyboard.Key.right:
-                    self.step(2)  # Right
+                    self.step(2)  # høyre
                 elif key == keyboard.Key.space:
-                    self.step(1)  # Stay
+                    self.step(1)  # stå stille
                 
-                # Clear screen and render
+                # tøm skjermen og render
                 import os
                 os.system('cls' if os.name == 'nt' else 'clear')
                 self.render()
                 
                 if self.game_over:
                     print("Game Over! Final score:", self.score)
-                    return False  # Stop listener
+                    return False  # stopp lytter
             except:
                 pass
                 
-        # Start listening for key presses
+        # start lytting etter tastetrykk
         with keyboard.Listener(on_press=on_press) as listener:
-            self.render()  # Initial render
+            self.render()  # initial render
             listener.join()
     
     def clone(self):
-        """Create a deep copy of the game state for MCTS."""
+        """lag en deep copy av game state for MCTS"""
         new_game = CatchGame(self.width, self.height, self.paddle_size)
         new_game.grid = self.grid.copy()
         new_game.paddle_pos = self.paddle_pos
@@ -150,27 +150,25 @@ class CatchGame:
         return new_game
 
     def get_action_space_size(self):
-        """Return the size of the action space."""
-        return 3  # Left, Stay, Right
+        """returner størrelsen på action space"""
+        return 3  # venstre, stå stille, høyre
 
     def get_state_size(self):
-        """Return the dimensions of the state."""
+        """returner dimensjonene til state"""
         return (self.height, self.width)
 
     def state_to_observation(self, state=None):
-        """Convert state to observation format for neural networks."""
+        """konverter state til observation format for neurale nettverk"""
         if state is None:
             state = self.get_state()
         
-        # For simple representation: same as state
-        # For MuZero: you might want to use one-hot encoding
-        # e.g., channels: [empty cells, paddle positions, fruit positions]
+        # for enkel representasjon: samme som state
+        # for MuZero: du vil kanskje bruke one-hot encoding
+        # f.eks. channels: [tomme celler, paddle posisjoner, frukt posisjoner]
         channels = np.zeros((3, self.height, self.width))
         
-        channels[0] = (state == 0).astype(np.float32)  # Empty
-        channels[1] = (state == 1).astype(np.float32)  # Paddle
-        channels[2] = (state == 2).astype(np.float32)  # Fruit
+        channels[0] = (state == 0).astype(np.float32)  # tomt
+        channels[1] = (state == 1).astype(np.float32)  # paddle
+        channels[2] = (state == 2).astype(np.float32)  # frukt
         
         return channels
-
-    
