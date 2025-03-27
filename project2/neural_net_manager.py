@@ -45,8 +45,7 @@ class NeuralNetManager():
         torch.save(self.model.state_dict(), filepath)
         
     def load(self, filepath):
-        torch.load(self.model.state_dict(), filepath)
-        
+        self.model.load_state_dict(torch.load(filepath))
     def train_step(self, batch):
         self.model.train()
         self.optimizer.zero_grad()
