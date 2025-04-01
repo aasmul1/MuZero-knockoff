@@ -1,7 +1,8 @@
-from catch import CatchGame
-from generic_game_state_manager import GameStateManager
+from games.catch import CatchGame
+from games.generic_game_state_manager import GameStateManager
 
 import numpy as np
+import torch  # Add torch import at the top
 
 class CatchGameStateManager(GameStateManager):
     """Adapter klasse for CatchGame som passer game state manager interface"""
@@ -79,3 +80,28 @@ class CatchGameStateManager(GameStateManager):
         temp_game.grid = state.copy()
         
         return temp_game
+        
+    def state_to_tensor(self, state=None):
+        """
+        Convert a game state to a PyTorch tensor suitable for neural network input.
+        
+        Args:
+            state: Game state to convert. If None, use current state.
+            
+        Returns:
+            torch.Tensor: Tensor ready for neural network input
+        """
+        if state is None:
+            state = self.game.get_state()
+            
+        # Use the game's built-in state_to_observation method to get channels
+        observation_channels = self.game.state_to_observation(state)
+        
+        # Convert to tensor
+        tensor_observation = torch.tensor(observation_channels, dtype=torch.float32)
+        
+        # Add batch dimension if needed (neural networks typically expect batch dimension)
+        if len(tensor_observation.shape) == 3:  # [channels, height, width]
+            tensor_observation = tensor_observation.unsqueeze(0)  # [1, channels, height, width]
+            
+        return tensor_observation
