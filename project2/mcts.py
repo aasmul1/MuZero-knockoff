@@ -1,96 +1,144 @@
-import copy
-import random
-from typing import Dict
+import logging
+import math
+from typing import Dict, Tuple, List, Set
 
-from project2.game import Game
+import numpy as np
+
+from project2.Action import Action
+from project2.models.super_model import Model
 from project2.node import Node
-
-MCTS_POLICY_EXPLORE = 100
-
-
-def mcts(mytree: "MCTS"):
-    for i in range(MCTS_POLICY_EXPLORE):
-        mytree.explore()
-
-    next_tree, next_action = mytree.next()
-
-    next_tree.detatch_parent()  # TODO Not declared anywhere
-
-    return next_tree, next_action
 
 
 class MCTS:
-    def __init__(self, sim_game: Game, current_node: Node):
-        self.sim_game: Game = sim_game.copy()
-        self.done = False  # TODO Correct init?
-        self.children: Dict[int, Node] = {}  # key: action, value: child that the action leads to
-        # TODO Correct init?
+    def __init__(self, model: Model, initial_available_actions: List[Action], c_1: float = 1.25, c_2: float = 19.652,
+                 simulations: int = 800,
+                 steps: int = 5, discount: float = 0.997):
+        self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
 
-        if current_node:
-            self.current_node = current_node
-        else:
-            Node(self.sim_game)  # TODO Assign to current_node?
+        # Used to control the influence of policy relative to the value as nodes are visited more often
+        self.c_1 = c_1
+        self.c_2 = c_2
 
-    def explore(self):
+        self.simulations = simulations  # Number of simulations to run per search
+        self.steps = steps  # The maximum number of hypothetical steps per simulation
+        self.discount = discount
+        self.model = model
+        self.initial_available_actions = initial_available_actions  # TODO Do we know this?
 
-        current_node = self
-        while current_node.children:
-            child = current_node.children
-            max_u = max(c.get_ucb_score() for c in child.values())
-            actions = [a for a, c in child.items() if c.get_ucb_score() == max_u]
-            assert len(actions), f"Error zero length: {max_u}"
-            action = random.choice(actions)
-            current_node = child[action]
+        self.search_tree: Set[Node] = set()
+        self.reward_table: Dict[Tuple[Node, Action], float] = dict()  # R(s^(l−1), a^l) = r^l
+        self.state_transition_table: Dict[Tuple[Node, Action], Node] = dict()  # S(s^(l−1), a^l) = s^l
+        self.visit_count_table: Dict[Tuple[Node, Action], int] = dict()  # N(s^l, a)
+        self.mean_value_table: Dict[Tuple[Node, Action], float] = dict()  # Q(s^l, a)
+        self.policy_table: Dict[Tuple[Node, Action], float] = dict()  # P(s^l, a) = p^l
+        # The policy table stores floats in range [0,1]. All actions of a state sum up to 1, making it a probability distribution over all available actions.
 
-        if current_node.visits < 1:
-            current_node.reward = current_node.reward + current_node.rollout()
-        else:
-            current_node.create_child()
-            if current_node.children:
-                current_node = random.choice(current_node.children)
-            current_node.reward = current_node.reward + current_node.rollout()
+    def run_simulations_and_select_action(self, root_node: Node, available_actions: List[Action]) -> Action:
+        if root_node not in self.search_tree:
+            self._expand_node(root_node)
+            self.logger.debug(f"Root node expanded")
 
-        current_node.visits += 1
+        self._run_simulations(root_node)
+        self.logger.info(f"Done with simulations")
 
-        while current_node.parent:
-            child_reward = current_node.reward
-            current_node = current_node.parent
-            current_node.visits += 1
-            current_node.reward += child_reward
+        return self._select_action(root_node, available_actions)
 
-    def rollout(self):
+    def _run_simulations(self, root_node: Node):
+        self.logger.info(f"Number of simulations to run is {self.simulations}")
 
-        if self.done:
-            return 0
+        for simulation in range(self.simulations):
 
-        v = 0
-        done = False
-        new_game = copy.deepcopy(self.sim_game)
-        while not done:
-            # Get a random action
-            action = new_game.action_space.sample()
-            observation, reward, done, _ = new_game.step(action)
-            v = v + reward
-            if done:
-                new_game.reset()
-                new_game.close()
-                break
-        return v
+            current_node = root_node
+            trajectory: List[Tuple[Node, Action | None]] = []
+            value = None
 
-    def next(self):
-        assert not self.done, "Game has ended"
-        assert self.children, "No children found and game hasn\'t ended"
+            for step in range(self.steps):
+                action = self._select_action(current_node, current_node.get_available_actions())
 
-        # TODO Only single child in children?
-        child = self.children
+                # Leaf node encountered, expand it
+                if (current_node, action) not in self.state_transition_table:
+                    # End of simulation:
+                    # Compute reward and new state with dynamics function
+                    # Store reward and new state in tables
+                    # Compute policy and value function for new state with prediction function
+                    # Add new node (with value function as attribute?) corresponding to new state to the search tree
+                    # Each edge leading out from the newly expanded node is initialized (with the policy)
 
-        max_visits = max(node.visits for node in child.values())
+                    new_state, reward = self.model.transition(current_node.hidden_state, action)
+                    new_node = Node(new_state)
+                    self.reward_table[(current_node, action)] = reward
+                    self.state_transition_table[(current_node, action)] = new_node
+                    value = self._expand_node(new_node)
+                    trajectory.append((current_node, action))
+                    self.logger.info(f"Expanded node! Reward {reward}, value {value}")
+                    break  # Only one expansion per simulation
 
-        max_children = [c for a, c in child.items() if c == max_visits]
+                new_node = self.state_transition_table[(current_node, action)]
+                trajectory.append((current_node, action))
+                current_node = new_node
 
-        if len(max_children) == 0:
-            print("Error zero length ", max_visits)
+            self.logger.debug(f"Completed steps of simulation {simulation}")
 
-        max_child = random.choice(max_children)
+            trajectory.append((current_node, None))  # Add last node visited/expanded to end of trajectory
 
-        return max_child, max_child.action
+            if len(trajectory) <= 1 or not value:
+                self.logger.debug(f"Skipping backup. Only a single node in trajectory, i.e., first node expanded")
+                continue  # Only a single node in trajectory, i.e., first node expanded
+
+            self._backup(trajectory, value)  # TODO As of now, only do backup when encountered unexpanded node
+
+            self.logger.debug(f"Back up performed of simulation {simulation} on trajectory {trajectory}")
+            self.logger.debug(f"Simulation {simulation} complete.")
+
+    def _backup(self, trajectory: List[Tuple[Node, Action | None]], leaf_node_value: float) -> None:
+        edges = len(trajectory) - 1
+        rewards: List[float] = [self.reward_table[edge] for edge in trajectory[
+                                                                    0:-1]]  # Not including last element of trajectory, which is only the leaf node
+
+        # Generate cumulative discounted rewards for updating edge values. k = 0 is the first node in the trajectory
+        # The cum rewards are bootstrapped from the value of the last node in trajectory (which comes from the prediction function)
+        for k in range(edges):
+            cum_reward_towards_leaf_node = sum(
+                [self.discount ** tau * rewards[k] for tau in range(0, edges)])  # Summation in the G^k formula
+            cumulative_reward = cum_reward_towards_leaf_node + leaf_node_value * self.discount ** (
+                    edges - k)  # G^k formula
+
+            old_q_value = self.mean_value_table[trajectory[k]]
+            old_visit_count = self.visit_count_table[trajectory[k]]
+
+            new_q_value = (old_visit_count * old_q_value + cumulative_reward) / (old_visit_count + 1)
+            new_visit_count = old_visit_count + 1
+
+            self.mean_value_table[trajectory[k]] = new_q_value
+            self.visit_count_table[trajectory[k]] = new_visit_count
+
+    def _select_action(self, node: Node, available_actions: List) -> Action:
+        total_visit_count = sum(map(lambda a: self.visit_count_table[node, a], available_actions))
+
+        return max(available_actions,
+                   key=lambda a: self._calculate_ucb_score(node, a, self.visit_count_table[node, a], total_visit_count))
+
+    def _calculate_ucb_score(self, node: Node, action: Action, visit_count: int, total_visit_count: int) -> float:
+        # Same formula as in MuZero
+        return self.mean_value_table[(node, action)] + self.policy_table[(node, action)] * math.sqrt(
+            total_visit_count) / (1 + visit_count) * (
+                self.c_1 + math.log((total_visit_count + self.c_2 + 1) / self.c_2))
+
+    def _expand_node(self, node: Node) -> float:
+        policy, value = self.model.predict(node.hidden_state)
+        self.search_tree.add(node)
+        node.set_available_actions(policy.keys())
+
+        self.logger.debug(f"Policy: {policy}, Value: {value}. Available actions in expansion: {policy.keys()}")
+
+        for a in policy.keys():
+            # Initialize edge
+            self.visit_count_table[(node, a)] = 0
+            self.mean_value_table[(node, a)] = 0
+            self.policy_table[(node, a)] = policy[a]
+
+        return value
+
+    # TODO This has to be worked around later
+    def create_node(self, state) -> Node:
+        return next((node for node in self.search_tree if np.array_equal(node.hidden_state, state)), Node(state))
