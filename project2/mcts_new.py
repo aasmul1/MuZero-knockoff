@@ -1,5 +1,8 @@
+import logging
 import math
 from typing import Dict, Tuple, List, Set
+
+import numpy as np
 
 from project2.Action import Action
 from project2.models.super_model import Model
@@ -7,9 +10,11 @@ from project2.node_new import NodeNew
 
 
 class MCTSNew:
-    def __init__(self, model: Model, available_actions: List[Action], c_1: float = 1.25, c_2: float = 19.652,
+    def __init__(self, model: Model, initial_available_actions: List[Action], c_1: float = 1.25, c_2: float = 19.652,
                  simulations: int = 800,
                  steps: int = 5, discount: float = 0.997):
+        self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
+
         # Used to control the influence of policy relative to the value as nodes are visited more often
         self.c_1 = c_1
         self.c_2 = c_2
@@ -18,7 +23,7 @@ class MCTSNew:
         self.steps = steps  # The maximum number of hypothetical steps per simulation
         self.discount = discount
         self.model = model
-        self.available_actions = available_actions  # TODO Do we know this?
+        self.initial_available_actions = initial_available_actions  # TODO Do we know this?
 
         self.search_tree: Set[NodeNew] = set()
         self.reward_table: Dict[Tuple[NodeNew, Action], float] = dict()  # R(s^(l−1), a^l) = r^l
@@ -28,15 +33,18 @@ class MCTSNew:
         self.policy_table: Dict[Tuple[NodeNew, Action], float] = dict()  # P(s^l, a) = p^l
         # The policy table stores floats in range [0,1]. All actions of a state sum up to 1, making it a probability distribution over all available actions.
 
-    def run_simulations_and_select_action(self, root_node: NodeNew) -> Action:
+    def run_simulations_and_select_action(self, root_node: NodeNew, available_actions: List[Action]) -> Action:
         if root_node not in self.search_tree:
-            self._expand_node(root_node, self.available_actions)
+            self._expand_node(root_node)
+            self.logger.debug(f"Root node expanded")
 
         self._run_simulations(root_node)
+        self.logger.info(f"Done with simulations")
 
-        return self._select_action(root_node, self.available_actions)
+        return self._select_action(root_node, available_actions)
 
     def _run_simulations(self, root_node: NodeNew):
+        self.logger.info(f"Number of simulations to run is {self.simulations}")
 
         for simulation in range(self.simulations):
 
@@ -45,7 +53,7 @@ class MCTSNew:
             value = None
 
             for step in range(self.steps):
-                action = self._select_action(current_node, self.available_actions)
+                action = self._select_action(current_node, current_node.get_available_actions())
 
                 # Leaf node encountered, expand it
                 if (current_node, action) not in self.state_transition_table:
@@ -56,26 +64,33 @@ class MCTSNew:
                     # Add new node (with value function as attribute?) corresponding to new state to the search tree
                     # Each edge leading out from the newly expanded node is initialized (with the policy)
 
-                    reward, new_state = self.model.transition(current_node, action)
+                    new_state, reward = self.model.transition(current_node.hidden_state, action)
                     new_node = NodeNew(new_state)
                     self.reward_table[(current_node, action)] = reward
                     self.state_transition_table[(current_node, action)] = new_node
-                    value = self._expand_node(new_node, self.available_actions)
+                    value = self._expand_node(new_node)
                     trajectory.append((current_node, action))
+                    self.logger.info(f"Expanded node! Reward {reward}, value {value}")
                     break  # Only one expansion per simulation
 
                 new_node = self.state_transition_table[(current_node, action)]
                 trajectory.append((current_node, action))
                 current_node = new_node
 
+            self.logger.debug(f"Completed steps of simulation {simulation}")
+
             trajectory.append((current_node, None))  # Add last node visited/expanded to end of trajectory
 
             if len(trajectory) <= 1 or not value:
-                return  # Only a single node in trajectory, i.e., first node expanded
+                self.logger.debug(f"Skipping backup. Only a single node in trajectory, i.e., first node expanded")
+                continue  # Only a single node in trajectory, i.e., first node expanded
 
             self._backup(trajectory, value)  # TODO As of now, only do backup when encountered unexpanded node
 
-    def _backup(self, trajectory: List[Tuple[NodeNew, Action | None]], leaf_node_value: float):
+            self.logger.debug(f"Back up performed of simulation {simulation} on trajectory {trajectory}")
+            self.logger.debug(f"Simulation {simulation} complete.")
+
+    def _backup(self, trajectory: List[Tuple[NodeNew, Action | None]], leaf_node_value: float) -> None:
         edges = len(trajectory) - 1
         rewards: List[float] = [self.reward_table[edge] for edge in trajectory[
                                                                     0:-1]]  # Not including last element of trajectory, which is only the leaf node
@@ -97,26 +112,33 @@ class MCTSNew:
             self.mean_value_table[trajectory[k]] = new_q_value
             self.visit_count_table[trajectory[k]] = new_visit_count
 
-    def _select_action(self, node: NodeNew, available_actions: List):
-        total_visit_count = sum(map(lambda a: a.visit_count, available_actions))
+    def _select_action(self, node: NodeNew, available_actions: List) -> Action:
+        total_visit_count = sum(map(lambda a: self.visit_count_table[node, a], available_actions))
 
         return max(available_actions,
-                   key=lambda a: self._calculate_ucb_score(node, a, a.visit_count, total_visit_count))
+                   key=lambda a: self._calculate_ucb_score(node, a, self.visit_count_table[node, a], total_visit_count))
 
-    def _calculate_ucb_score(self, node: NodeNew, action: Action, visit_count: int, total_visit_count: int):
+    def _calculate_ucb_score(self, node: NodeNew, action: Action, visit_count: int, total_visit_count: int) -> float:
         # Same formula as in MuZero
         return self.mean_value_table[(node, action)] + self.policy_table[(node, action)] * math.sqrt(
             total_visit_count) / (1 + visit_count) * (
                 self.c_1 + math.log((total_visit_count + self.c_2 + 1) / self.c_2))
 
-    def _expand_node(self, node: NodeNew, available_actions) -> float:
-        policy, value = self.model.predict(node.hidden_state)  # TODO Assuming policy returned is a dict
+    def _expand_node(self, node: NodeNew) -> float:
+        policy, value = self.model.predict(node.hidden_state)
         self.search_tree.add(node)
+        node.set_available_actions(policy.keys())
 
-        for a in available_actions:
+        self.logger.debug(f"Policy: {policy}, Value: {value}. Available actions in expansion: {policy.keys()}")
+
+        for a in policy.keys():
             # Initialize edge
             self.visit_count_table[(node, a)] = 0
             self.mean_value_table[(node, a)] = 0
             self.policy_table[(node, a)] = policy[a]
 
         return value
+
+    # TODO This has to be worked around later
+    def create_node(self, state) -> NodeNew:
+        return next((node for node in self.search_tree if np.array_equal(node.hidden_state, state)), NodeNew(state))
