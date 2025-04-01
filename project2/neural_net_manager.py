@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import os
 
-from project2.neural_net import MuZeroNetwork
+from neural_net import MuZeroNetwork
 
 class NeuralNetManager():
     def __init__(self, config):
@@ -46,6 +46,7 @@ class NeuralNetManager():
         
     def load(self, filepath):
         self.model.load_state_dict(torch.load(filepath))
+        
     def train_step(self, batch):
         self.model.train()
         self.optimizer.zero_grad()
@@ -59,14 +60,18 @@ class NeuralNetManager():
     
     def compute_loss(self, batch):
         observations = batch["observations"].to(self.device)           
-        target_policies = batch["target_policy"]                        
-        target_rewards = batch["target_reward"]                         
-        target_values = batch["target_value"]                           
+        target_policies = batch["target_policy"].to(self.device)                      
+        target_rewards = batch["target_reward"].to(self.device)                     
+        target_values = batch["target_value"].to(self.device)                       
         actions = batch["actions"].to(self.device)                      
 
         
         out = self.model.initial_inference(observations)
-        loss_policy = F.cross_entropy(out.policy_logits, target_policies[:, 0])
+        
+        # Use KL divergence loss for policy - target_policies are now probability distributions
+        log_softmax_policies = F.log_softmax(out.policy_logits, dim=1)
+        loss_policy = -(target_policies[:, 0] * log_softmax_policies).sum(dim=1).mean()
+        
         loss_value = F.mse_loss(out.value, target_values[:, 0])
         total_reward_loss = 0.0
 
@@ -75,7 +80,11 @@ class NeuralNetManager():
         
         for k in range(actions.size(1)):
             out = self.model.recurrent_inference(hidden_state, actions[:, k])
-            loss_policy += F.cross_entropy(out.policy_logits, target_policies[:, k + 1])
+            
+            # Policy loss using KL divergence
+            log_softmax_policies = F.log_softmax(out.policy_logits, dim=1)
+            loss_policy += -(target_policies[:, k + 1] * log_softmax_policies).sum(dim=1).mean()
+            
             loss_value += F.mse_loss(out.value, target_values[:, k + 1])
             total_reward_loss += F.mse_loss(out.reward, target_rewards[:, k])
             hidden_state = out.hidden_state  

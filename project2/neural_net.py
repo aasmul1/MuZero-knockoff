@@ -19,7 +19,12 @@ class MuZeroNetwork(nn.Module):
             latent_dim (int): Size of the latent (abstract) state.
         """
         super(MuZeroNetwork, self).__init__()
-        self.action_space_size = len(action_space)
+        # Handle both cases: action_space can be an integer or an iterable
+        if isinstance(action_space, (int, float)):
+            self.action_space_size = action_space
+        else:
+            self.action_space_size = len(action_space)
+            
         self.latent_dim = latent_dim
         self._training_steps = 0  
         
