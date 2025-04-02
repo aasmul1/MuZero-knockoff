@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Dict, Tuple, Any, Union, List
 import numpy as np
 
+from project2.Action import Action
+
+
 class Model(ABC):
     """
     Abstrakt grensesnitt for modeller som brukes i tree-search algoritmer.
@@ -37,7 +40,7 @@ class Model(ABC):
         pass
     
     @abstractmethod
-    def predict(self, abstract_state: np.ndarray) -> Tuple[Dict[int, float], float]:
+    def predict(self, abstract_state: np.ndarray) -> Tuple[Dict[Action, float], float]:
         """
         Forutsier policy og value for en gitt abstrakt tilstand.
         
