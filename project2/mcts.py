@@ -33,18 +33,24 @@ class MCTS:
         self.policy_table: Dict[Tuple[Node, Action], float] = dict()  # P(s^l, a) = p^l
         # The policy table stores floats in range [0,1]. All actions of a state sum up to 1, making it a probability distribution over all available actions.
 
+        # For visualizing search tree:
+        self.root_nodes: Set[Node] = set()  # Store all root nodes use, i.e. the observed states of the environment
+        self.ucb_scores: Dict[Tuple[Node, Action], float] = dict()  # Store all calculated UCB scores
+
     def run_simulations_and_select_action(self, root_node: Node, available_actions: List[Action]) -> Action:
         if root_node not in self.search_tree:
             self._expand_node(root_node)
             self.logger.debug(f"Root node expanded")
 
+        self.root_nodes.add(root_node)
+
         self._run_simulations(root_node)
-        self.logger.info(f"Done with simulations")
 
         return self._select_action(root_node, available_actions)
 
     def _run_simulations(self, root_node: Node):
         self.logger.info(f"Number of simulations to run is {self.simulations}")
+        num_expanded_nodes = 0
 
         for simulation in range(self.simulations):
 
@@ -70,14 +76,15 @@ class MCTS:
                     self.state_transition_table[(current_node, action)] = new_node
                     value = self._expand_node(new_node)
                     trajectory.append((current_node, action))
-                    self.logger.info(f"Expanded node! Reward {reward}, value {value}")
+                    num_expanded_nodes += 1
+                    self.logger.debug(f"Expanded node! Reward {reward}, value {value}")
                     break  # Only one expansion per simulation
 
                 new_node = self.state_transition_table[(current_node, action)]
                 trajectory.append((current_node, action))
                 current_node = new_node
 
-            self.logger.debug(f"Completed steps of simulation {simulation}")
+            self.logger.info(f"Completed steps of simulation {simulation}. {step + 1} steps taken.")
 
             trajectory.append((current_node, None))  # Add last node visited/expanded to end of trajectory
 
@@ -89,6 +96,8 @@ class MCTS:
 
             self.logger.debug(f"Back up performed of simulation {simulation} on trajectory {trajectory}")
             self.logger.debug(f"Simulation {simulation} complete.")
+
+        self.logger.info(f"Done with simulations. {num_expanded_nodes} nodes expanded.")
 
     def _backup(self, trajectory: List[Tuple[Node, Action | None]], leaf_node_value: float) -> None:
         edges = len(trajectory) - 1
@@ -115,8 +124,13 @@ class MCTS:
     def _select_action(self, node: Node, available_actions: List) -> Action:
         total_visit_count = sum(map(lambda a: self.visit_count_table[node, a], available_actions))
 
+        for action in available_actions:
+            self.ucb_scores[(node, action)] = self._calculate_ucb_score(node, action,
+                                                                        self.visit_count_table[node, action],
+                                                                        total_visit_count)
+
         return max(available_actions,
-                   key=lambda a: self._calculate_ucb_score(node, a, self.visit_count_table[node, a], total_visit_count))
+                   key=lambda a: self.ucb_scores[(node, a)])
 
     def _calculate_ucb_score(self, node: Node, action: Action, visit_count: int, total_visit_count: int) -> float:
         # Same formula as in MuZero

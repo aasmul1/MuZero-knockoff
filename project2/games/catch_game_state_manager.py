@@ -39,8 +39,7 @@ class CatchGameStateManager(GameStateManager):
         self.state_cache[cache_key] = (next_state, reward, done)
 
         return next_state, reward, done
-    
-    
+
     def is_terminal_state(self, state):
         """sjekk om state er terminal"""
         # lag temp game med denne staten for å sjekke om terminal
@@ -77,6 +76,8 @@ class CatchGameStateManager(GameStateManager):
         fruit_pos = np.where(state == 2)
         if len(fruit_pos[0]) > 0:
             temp_game.fruit_pos = [fruit_pos[0][0], fruit_pos[1][0]]
+        else:
+            temp_game.fruit_pos = [0, np.random.randint(0, temp_game.width)]
 
         temp_game.grid = state.copy()
 

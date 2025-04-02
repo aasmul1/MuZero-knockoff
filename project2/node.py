@@ -12,7 +12,8 @@ class Node:
 
     def __str__(self):
         # return f"Node's hidden state:\n {self.hidden_state}"
-        return f"Node with hidden state size {self.hidden_state.size}"
+        # return f"Hidden state size {self.hidden_state.size}"
+        return f"{self.hidden_state}"
 
     def __hash__(self):
         return hash(self.hidden_state.tobytes())
