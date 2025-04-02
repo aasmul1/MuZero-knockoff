@@ -19,7 +19,7 @@ gs_initial_state = gs_manager.generate_initial_state()
 gs_available_actions = gs_manager.get_legal_actions(gs_initial_state)
 
 model = PerfectModel(gs_manager)
-mcts = MCTS(model, gs_available_actions, simulations=10, discount=1, steps=100, c_1=1, c_2=10)
+mcts = MCTS(model, gs_available_actions, simulations=50, discount=1, steps=100, c_1=1, c_2=10)
 
 initial_state = model.represent_state(gs_initial_state)
 available_actions = gs_manager.get_legal_actions(initial_state)
@@ -40,7 +40,7 @@ while not done:
     total_reward += reward
 
     runs += 1
-    if runs > 3:
+    if runs > 10:
         done = True
 
 print(f"Total reward: {total_reward}")

@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.random import default_rng
 
 class CatchGame:
     def __init__(self, grid_width=10, grid_height=10, paddle_size=1):
@@ -7,7 +6,6 @@ class CatchGame:
         self.width = grid_width
         self.height = grid_height
         self.paddle_size = paddle_size
-        self.rng = default_rng()  # rng per game
         self.reset()
         
     def reset(self):
@@ -20,7 +18,7 @@ class CatchGame:
         self.update_paddle()
         
         # initialiser frukt på tilfeldig posisjon på toppen
-        self.fruit_pos = [0, self.rng.integers(0, self.width)]
+        self.fruit_pos = [0, np.random.randint(0, self.width)]
         self.grid[self.fruit_pos[0], self.fruit_pos[1]] = 2  # 2 representerer frukt
         
         self.score = 0
@@ -55,10 +53,11 @@ class CatchGame:
     def step(self, action):
         """utfør action og returner (next_state, reward, done)"""
         # flytt paddle basert på action
-        if action == 0 and self.paddle_pos > 0:
+        if action == 0 and self.paddle_pos > 0:  # venstre
             self.paddle_pos -= 1
-        elif action == 2 and self.paddle_pos + self.paddle_size < self.width:
+        elif action == 2 and self.paddle_pos + self.paddle_size < self.width:  # høyre
             self.paddle_pos += 1
+        # action 1 er stå stille (ingen bevegelse)
         
         self.update_paddle()
         
@@ -69,6 +68,7 @@ class CatchGame:
         # sjekk om frukt er i nederste rad
         reward = 0
         if self.fruit_pos[0] == self.height - 1:
+            # sjekk om frukt blir fanget av paddle
             if self.paddle_pos <= self.fruit_pos[1] < self.paddle_pos + self.paddle_size:
                 reward = 1
                 self.score += 1
@@ -76,8 +76,9 @@ class CatchGame:
                 reward = -1
                 self.game_over = True
                 
+            # spawn ny frukt på toppen hvis spillet fortsetter
             if not self.game_over:
-                self.fruit_pos = [0, self.rng.integers(0, self.width)]  
+                self.fruit_pos = [0, np.random.randint(0, self.width)]
         
         # plasser frukt på grid hvis spillet fortsetter
         if not self.game_over:
@@ -85,6 +86,7 @@ class CatchGame:
         
         self.steps += 1
         
+        # valgfritt: avslutt spill etter et visst antall steps
         if self.steps >= 100:
             self.game_over = True
             
@@ -97,11 +99,11 @@ class CatchGame:
                 line = ""
                 for cell in row:
                     if cell == 0:
-                        line += "⬛"
+                        line += "⬛"  # tomt
                     elif cell == 1:
-                        line += "🟦"
+                        line += "🟦"  # paddle
                     elif cell == 2:
-                        line += "🍎"
+                        line += "🍎"  # frukt
                 print(line)
             print(f"Score: {self.score}")
             print("-" * self.width)
@@ -114,30 +116,31 @@ class CatchGame:
         def on_press(key):
             try:
                 if key == keyboard.Key.left:
-                    self.step(0)
+                    self.step(0)  # venstre
                 elif key == keyboard.Key.right:
-                    self.step(2)
+                    self.step(2)  # høyre
                 elif key == keyboard.Key.space:
-                    self.step(1)
+                    self.step(1)  # stå stille
                 
+                # tøm skjermen og render
                 import os
                 os.system('cls' if os.name == 'nt' else 'clear')
                 self.render()
                 
                 if self.game_over:
                     print("Game Over! Final score:", self.score)
-                    return False
+                    return False  # stopp lytter
             except:
                 pass
                 
+        # start lytting etter tastetrykk
         with keyboard.Listener(on_press=on_press) as listener:
-            self.render()
+            self.render()  # initial render
             listener.join()
     
     def clone(self):
         """lag en deep copy av game state for MCTS"""
         new_game = CatchGame(self.width, self.height, self.paddle_size)
-        new_game.rng = default_rng()  #  new RNG for the clone
         new_game.grid = self.grid.copy()
         new_game.paddle_pos = self.paddle_pos
         new_game.fruit_pos = self.fruit_pos.copy()
@@ -147,18 +150,25 @@ class CatchGame:
         return new_game
 
     def get_action_space_size(self):
-        return 3
+        """returner størrelsen på action space"""
+        return 3  # venstre, stå stille, høyre
 
     def get_state_size(self):
+        """returner dimensjonene til state"""
         return (self.height, self.width)
 
     def state_to_observation(self, state=None):
+        """konverter state til observation format for neurale nettverk"""
         if state is None:
             state = self.get_state()
         
+        # for enkel representasjon: samme som state
+        # for MuZero: du vil kanskje bruke one-hot encoding
+        # f.eks. channels: [tomme celler, paddle posisjoner, frukt posisjoner]
         channels = np.zeros((3, self.height, self.width))
-        channels[0] = (state == 0).astype(np.float32)
-        channels[1] = (state == 1).astype(np.float32)
-        channels[2] = (state == 2).astype(np.float32)
+        
+        channels[0] = (state == 0).astype(np.float32)  # tomt
+        channels[1] = (state == 1).astype(np.float32)  # paddle
+        channels[2] = (state == 2).astype(np.float32)  # frukt
         
         return channels
