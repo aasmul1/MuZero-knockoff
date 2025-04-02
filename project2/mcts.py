@@ -141,9 +141,9 @@ class MCTS:
     def _expand_node(self, node: Node) -> float:
         policy, value = self.model.predict(node.hidden_state)
         self.search_tree.add(node)
-        node.set_available_actions(policy.keys())
+        node.set_available_actions(list(policy.keys()))
 
-        self.logger.debug(f"Policy: {policy}, Value: {value}. Available actions in expansion: {policy.keys()}")
+        self.logger.debug(f"Policy: {policy}, Value: {value}. Available actions in expansion: {list(policy.keys())}")
 
         for a in policy.keys():
             # Initialize edge
