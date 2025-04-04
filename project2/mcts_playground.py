@@ -1,10 +1,13 @@
 import logging
+from copy import deepcopy
+from typing import List
 
 from project2.config import logging_config
 from project2.games.catch_game_state_manager import CatchGameStateManager
 from project2.logging_config import configure_logging
 from project2.mcts import MCTS
 from project2.models.perfect_model import PerfectModel
+from project2.node import Node
 from project2.visualize_search_tree import visualize_search_tree
 
 try:
@@ -19,7 +22,7 @@ gs_initial_state = gs_manager.generate_initial_state()
 gs_available_actions = gs_manager.get_legal_actions(gs_initial_state)
 
 model = PerfectModel(gs_manager)
-mcts = MCTS(model, gs_available_actions, simulations=50, discount=1, steps=100, c_1=1, c_2=10)
+mcts = MCTS(model, gs_available_actions, simulations=5, discount=1, steps=100)
 
 initial_state = model.represent_state(gs_initial_state)
 available_actions = gs_manager.get_legal_actions(initial_state)
@@ -40,12 +43,15 @@ while not done:
     total_reward += reward
 
     runs += 1
-    if runs > 10:
+    if runs > 1000:
         done = True
 
 print(f"Total reward: {total_reward}")
-visualize_search_tree(search_tree=mcts.search_tree, root_nodes=mcts.root_nodes, reward_table=mcts.reward_table,
+
+root_nodes: List[Node] = deepcopy(mcts.root_nodes)
+root_nodes.append(mcts.create_node(state))
+
+visualize_search_tree(search_tree=mcts.search_tree, root_nodes=root_nodes, reward_table=mcts.reward_table,
                       policy_table=mcts.policy_table, visit_count_table=mcts.visit_count_table,
                       mean_value_table=mcts.mean_value_table,
                       state_transition_table=mcts.state_transition_table, ucb_scores=mcts.ucb_scores)
-print("Done")
