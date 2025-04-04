@@ -1,12 +1,13 @@
 import logging
-import math
 from typing import Dict, Tuple, List, Set
 
 import numpy as np
 
 from project2.Action import Action
+from project2.config import logging_config
 from project2.models.super_model import Model
 from project2.node import Node
+from project2.visualize_search_tree import visualize_search_tree_with_trajectory
 
 
 class MCTS:
@@ -92,33 +93,39 @@ class MCTS:
                 self.logger.debug(f"Skipping backup. Only a single node in trajectory, i.e., first node expanded")
                 continue  # Only a single node in trajectory, i.e., first node expanded
 
-            # visualize_search_tree_with_trajectory(trajectory=trajectory, mean_value_table=self.mean_value_table,
-            #                                       reward_table=self.reward_table, policy_table=self.policy_table,
-            #                                       state_transition_table=self.state_transition_table,
-            #                                       ucb_scores=self.ucb_scores, visit_count_table=self.visit_count_table,
-            #                                       file_name=f"before_backup-{simulation}.png",
-            #                                       search_tree=self.search_tree)
+            if logging_config["plot_backups"]:
+                visualize_search_tree_with_trajectory(trajectory=trajectory, mean_value_table=self.mean_value_table,
+                                                      reward_table=self.reward_table, policy_table=self.policy_table,
+                                                      state_transition_table=self.state_transition_table,
+                                                      ucb_scores=self.ucb_scores,
+                                                      visit_count_table=self.visit_count_table,
+                                                      file_name=f"before_backup-{simulation}.png",
+                                                      search_tree=self.search_tree)
 
             self._backup(trajectory, value)  # TODO As of now, only do backup when encountered unexpanded node
 
-            # Update stored UCB scores.
-            # temp_tot_visit_counts = dict()
-            # for n_a_tuple in trajectory[:-1]:  # Do not include leaf node of trajectory
-            #     if n_a_tuple[0] not in temp_tot_visit_counts:
-            #         temp_tot_visit_counts[n_a_tuple[0]] = sum(
-            #             [visit_count for key, visit_count in self.visit_count_table.items() if key[0] == n_a_tuple[0]])
-            #
-            #     self.ucb_scores[n_a_tuple] = self._calculate_ucb_score(node=n_a_tuple[0], action=n_a_tuple[1],
-            #                                                            visit_count=self.visit_count_table[n_a_tuple],
-            #                                                            total_visit_count=temp_tot_visit_counts[
-            #                                                                n_a_tuple[0]])
+            if logging_config["plot_backups"]:
+                # Update stored UCB scores.
+                temp_tot_visit_counts = dict()
+                for n_a_tuple in trajectory[:-1]:  # Do not include leaf node of trajectory
+                    if n_a_tuple[0] not in temp_tot_visit_counts:
+                        temp_tot_visit_counts[n_a_tuple[0]] = sum(
+                            [visit_count for key, visit_count in self.visit_count_table.items() if
+                             key[0] == n_a_tuple[0]])
 
-            # visualize_search_tree_with_trajectory(trajectory=trajectory, mean_value_table=self.mean_value_table,
-            #                                       reward_table=self.reward_table, policy_table=self.policy_table,
-            #                                       state_transition_table=self.state_transition_table,
-            #                                       ucb_scores=self.ucb_scores, visit_count_table=self.visit_count_table,
-            #                                       file_name=f"after_backup-{simulation}.png",
-            #                                       search_tree=self.search_tree)
+                    self.ucb_scores[n_a_tuple] = self._calculate_ucb_score(node=n_a_tuple[0], action=n_a_tuple[1],
+                                                                           visit_count=self.visit_count_table[
+                                                                               n_a_tuple],
+                                                                           total_visit_count=temp_tot_visit_counts[
+                                                                               n_a_tuple[0]])
+
+                visualize_search_tree_with_trajectory(trajectory=trajectory, mean_value_table=self.mean_value_table,
+                                                      reward_table=self.reward_table, policy_table=self.policy_table,
+                                                      state_transition_table=self.state_transition_table,
+                                                      ucb_scores=self.ucb_scores,
+                                                      visit_count_table=self.visit_count_table,
+                                                      file_name=f"after_backup-{simulation}.png",
+                                                      search_tree=self.search_tree)
 
             self.logger.info(f"Back up performed of simulation {simulation} on trajectory of length {len(trajectory)}")
 
@@ -128,6 +135,8 @@ class MCTS:
         edges = len(trajectory) - 1
         rewards: List[float] = [self.reward_table[edge] for edge in trajectory[
                                                                     0:-1]]  # Not including last element of trajectory, which is only the leaf node
+
+        self.logger.debug(f"Performing backup... Rewards {rewards}, ")
 
         # Generate cumulative discounted rewards for updating edge values. k = 0 is the first node in the trajectory
         # The cum rewards are bootstrapped from the value of the last node in trajectory (which comes from the prediction function)
@@ -146,9 +155,9 @@ class MCTS:
             self.mean_value_table[trajectory[k]] = new_q_value
             self.visit_count_table[trajectory[k]] = new_visit_count
             self.logger.debug(
-                f"Updated edge. Old Q {old_q_value}, New Q {new_q_value}, Old V {old_visit_count}, New V {new_visit_count}, Cum Reward {cumulative_reward}")
+                f"Updated edge. Old Q {old_q_value}, New Q {new_q_value}, Old V {old_visit_count}, New V {new_visit_count}, Leaf node value {leaf_node_value}, Cum Reward towards leaf {cum_reward_towards_leaf_node}, Cum Reward {cumulative_reward}")
 
-    def _select_action(self, node: Node, available_actions: List) -> Action:
+    def _select_action(self, node: Node, available_actions: List[Action]) -> Action:
         total_visit_count = sum(map(lambda a: self.visit_count_table[node, a], available_actions))
 
         for action in available_actions:
@@ -161,10 +170,10 @@ class MCTS:
 
     def _calculate_ucb_score(self, node: Node, action: Action, visit_count: int, total_visit_count: int) -> float:
         # Same formula as in MuZero
-        # TODO Remove 0 * before math.log
-        return self.mean_value_table[(node, action)] + self.policy_table[(node, action)] * math.sqrt(
-            total_visit_count) / (1 + visit_count) * (
-                self.c_1 + math.log((total_visit_count + self.c_2 + 1) / self.c_2))
+        # return self.mean_value_table[(node, action)] + self.policy_table[(node, action)] * math.sqrt(
+        #     total_visit_count) / (1 + visit_count) * (
+        #         self.c_1 + math.log((total_visit_count + self.c_2 + 1) / self.c_2))
+        return self.mean_value_table[(node, action)]
 
     def _expand_node(self, node: Node) -> float:
         policy, value = self.model.predict(node.hidden_state)
@@ -183,4 +192,5 @@ class MCTS:
 
     # TODO This has to be worked around later
     def create_node(self, state) -> Node:
+        # Return node if in search tree, else create new
         return next((node for node in self.search_tree if np.array_equal(node.hidden_state, state)), Node(state))
