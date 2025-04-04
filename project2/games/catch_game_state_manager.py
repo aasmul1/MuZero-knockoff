@@ -56,13 +56,14 @@ class CatchGameStateManager(GameStateManager):
 
         fruit_col = temp_game.fruit_pos[1]
         paddle_center = temp_game.paddle_pos + temp_game.paddle_size // 2
-        distance = abs(fruit_col - paddle_center)
+        x_distance_to_fruit = abs(fruit_col - paddle_center)
+        fruit_distance_to_ground = temp_game.height - temp_game.fruit_pos[0] - 1
 
-        # normaliser avstand til [-1, 1] range
-        max_distance = temp_game.width
-        normalized_distance = -2 * (distance / max_distance) + 1
-
-        return normalized_distance
+        # If fruit is within reach in time to catch it
+        if x_distance_to_fruit <= fruit_distance_to_ground:
+            return 1
+        else:
+            return -1
 
     def _create_temp_game(self, state):
         """lag et midlertidig game med gitt state"""

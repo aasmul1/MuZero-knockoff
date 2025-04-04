@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Any, Union, List
+from typing import Dict, Tuple
+
 import numpy as np
 
 from project2.Action import Action
@@ -11,7 +12,7 @@ class Model(ABC):
     Dette lar oss bytte mellom perfekte simulator-modeller (for MCTS) 
     og lærte modeller (for MuZero).
     """
-    
+
     @abstractmethod
     def represent_state(self, observation: np.ndarray) -> np.ndarray:
         """
@@ -24,9 +25,9 @@ class Model(ABC):
             En abstrakt tilstandsrepresentasjon
         """
         pass
-    
+
     @abstractmethod
-    def transition(self, abstract_state: np.ndarray, action: int) -> Tuple[np.ndarray, float]:
+    def transition(self, abstract_state: np.ndarray, action: Action) -> Tuple[np.ndarray, float]:
         """
         Forutsier neste abstrakte tilstand og belønning etter å ha utført en handling.
         
@@ -38,7 +39,7 @@ class Model(ABC):
             (next_abstract_state, reward)
         """
         pass
-    
+
     @abstractmethod
     def predict(self, abstract_state: np.ndarray) -> Tuple[Dict[Action, float], float]:
         """

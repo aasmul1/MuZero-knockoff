@@ -8,5 +8,6 @@ LEARNING_RATE = 0.001
 
 logging_config = {
     "log_file": "log.log",
-    "log_level": logging.INFO
+    "log_level": logging.DEBUG,
+    "plot_backups": False
 }

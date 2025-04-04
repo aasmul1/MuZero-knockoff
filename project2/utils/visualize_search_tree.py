@@ -1,4 +1,6 @@
-from typing import Set, Dict, Tuple
+import logging
+import os
+from typing import Set, Dict, Tuple, List
 
 import networkx as nx
 import pygraphviz as pgv
@@ -8,13 +10,17 @@ from project2.node import Node
 
 
 def visualize_search_tree(search_tree: Set[Node],
-                          root_nodes: Set[Node],
+                          root_nodes: List[Node],
                           reward_table: Dict[Tuple[Node, Action], float],
                           state_transition_table: Dict[Tuple[Node, Action], Node],
                           visit_count_table: Dict[Tuple[Node, Action], int],
                           mean_value_table: Dict[Tuple[Node, Action], float],
                           policy_table: Dict[Tuple[Node, Action], float],
-                          ucb_scores: Dict[Tuple[Node, Action], float]):
+                          ucb_scores: Dict[Tuple[Node, Action], float],
+                          file_name: str = "plot.png"):
+    logger = logging.getLogger(__name__)
+    logger.info("Started creating plot of graph...")
+
     g = pgv.AGraph(directed=True)
     g.add_nodes_from(search_tree)
 
@@ -54,19 +60,47 @@ def visualize_search_tree(search_tree: Set[Node],
     g.graph_attr['overlap'] = 'false'  # Ensure no node overlap
 
     g.layout(prog="twopi")
-    g.draw("plot.png")
+
+    if not os.path.exists("plots/"):
+        os.makedirs("plots/")
+
+    g.draw(f"plots/{file_name}")
+
+    logger.info(f"Finished creating plot of graph! Saved at plots/{file_name}")
 
 
 def _mark_longest_path_nodes(g, root_nodes):
     nx_g = nx.nx_agraph.from_agraph(g)
 
     for root_node in root_nodes:
-        g.get_node(root_node).attr['color'] = 'blue'
+        if root_node == root_nodes[0]:
+            g.get_node(root_node).attr['color'] = 'blue'
+        elif root_node == root_nodes[-1]:
+            g.get_node(root_node).attr['color'] = 'red'
+        else:
+            g.get_node(root_node).attr['color'] = 'green'
 
         path_lengths = nx.single_source_shortest_path_length(nx_g, g.get_node(root_node))
         first_longest_path_node = max(path_lengths, key=lambda n: path_lengths[n])
         longest_path_length = path_lengths[first_longest_path_node]
         longest_path_nodes = [n for n in path_lengths if path_lengths[n] == longest_path_length]
 
-        for node in longest_path_nodes:
-            g.get_node(node).attr['color'] = 'green'
+        # for node in longest_path_nodes:
+        #     g.get_node(node).attr['color'] = 'yellow'
+
+
+def visualize_search_tree_with_trajectory(trajectory: List[Tuple[Node, Action | None]],
+                                          search_tree: Set[Node],
+                                          reward_table: Dict[Tuple[Node, Action], float],
+                                          state_transition_table: Dict[Tuple[Node, Action], Node],
+                                          visit_count_table: Dict[Tuple[Node, Action], int],
+                                          mean_value_table: Dict[Tuple[Node, Action], float],
+                                          policy_table: Dict[Tuple[Node, Action], float],
+                                          ucb_scores: Dict[Tuple[Node, Action], float],
+                                          file_name: str):
+    # trajectory_search_tree = {node_action_tuple[0] for node_action_tuple in trajectory}
+    trajectory_nodes = [node_action_tuple[0] for node_action_tuple in trajectory]
+    visualize_search_tree(search_tree=search_tree, ucb_scores=ucb_scores,
+                          visit_count_table=visit_count_table, policy_table=policy_table, reward_table=reward_table,
+                          state_transition_table=state_transition_table, mean_value_table=mean_value_table,
+                          root_nodes=trajectory_nodes, file_name=file_name)
