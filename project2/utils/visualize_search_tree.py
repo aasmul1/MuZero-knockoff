@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Set, Dict, Tuple, List
 
 import networkx as nx
@@ -59,6 +60,10 @@ def visualize_search_tree(search_tree: Set[Node],
     g.graph_attr['overlap'] = 'false'  # Ensure no node overlap
 
     g.layout(prog="twopi")
+
+    if not os.path.exists("plots/"):
+        os.makedirs("plots/")
+
     g.draw(f"plots/{file_name}")
 
     logger.info(f"Finished creating plot of graph! Saved at plots/{file_name}")
