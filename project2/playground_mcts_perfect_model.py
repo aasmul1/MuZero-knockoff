@@ -4,11 +4,11 @@ from typing import List
 
 from project2.config import logging_config
 from project2.games.catch_game_state_manager import CatchGameStateManager
-from project2.logging_config import configure_logging
 from project2.mcts import MCTS
 from project2.models.perfect_model import PerfectModel
 from project2.node import Node
-from project2.visualize_search_tree import visualize_search_tree
+from project2.utils.logging_config import configure_logging
+from project2.utils.visualize_search_tree import visualize_search_tree
 
 try:
     configure_logging(log_file=logging_config["log_file"], log_level=logging_config["log_level"])
