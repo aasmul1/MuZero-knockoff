@@ -1,7 +1,11 @@
-import numpy as np
-from models.super_model import Model
+from typing import Tuple, Dict
 
+import numpy as np
+
+from project2.Action import Action
 from project2.games.catch_game_state_manager import CatchGameStateManager
+from project2.games.generic_game_state_manager import GameStateManager
+from project2.models.super_model import Model
 
 
 class PerfectModel(Model):
@@ -10,7 +14,7 @@ class PerfectModel(Model):
     Brukes for tradisjonell MCTS.
     """
 
-    def __init__(self, game_state_manager):
+    def __init__(self, game_state_manager: GameStateManager):
         """
         Initialiserer med en game state manager som kjenner reglene.
         
@@ -21,7 +25,7 @@ class PerfectModel(Model):
         """
         self.gsm = game_state_manager
 
-    def represent_state(self, observation):
+    def represent_state(self, observation: np.ndarray) -> np.ndarray:
         """
         For en perfekt modell er den abstrakte tilstanden den samme som den faktiske spilltilstanden.
         
@@ -33,13 +37,13 @@ class PerfectModel(Model):
         """
         return observation
 
-    def transition(self, abstract_state, action):
+    def transition(self, abstract_state: np.ndarray, action: Action) -> Tuple[np.ndarray, float]:
         """
         Bruker spillsimulatoren for å få neste tilstand og belønning.
         
         Args:
             abstract_state: Nåværende spilltilstand
-            action: Handlingen som skal utføres (int)
+            action: Handlingen som skal utføres (Action)
             
         Returns:
             Tuple av (next_state, reward)
@@ -47,12 +51,12 @@ class PerfectModel(Model):
         next_state, reward, _ = self.gsm.get_next_state_and_reward(abstract_state, action)
         return next_state, reward
 
-    def predict(self, state):
+    def predict(self, abstract_state: np.ndarray) -> Tuple[Dict[Action, float], float]:
         """
                For en perfekt modell i MCTS bruker vi heuristikker for å evaluere tilstanden.
 
                Args:
-                   state:
+                   abstract_state:
 
                Returns:
                    Tuple av (policy, value) hvor:
@@ -64,11 +68,11 @@ class PerfectModel(Model):
         if not isinstance(self.gsm, CatchGameStateManager):
             raise NotImplementedError("Not implemented predict function of Perfect Model for this Game State Manager")
 
-        fruit_pos = np.where(state == 2)
-        paddle_row = state[-1]
+        fruit_pos = np.where(abstract_state == 2)
+        paddle_row = abstract_state[-1]
         paddle_indices = np.where(paddle_row == 1)[0]
 
-        actions = self.gsm.get_legal_actions(state)
+        actions = self.gsm.get_legal_actions(abstract_state)
         policy = {action: 0.0 for action in actions}
 
         if fruit_pos[1].size == 0 or paddle_indices.size == 0:
@@ -93,5 +97,5 @@ class PerfectModel(Model):
         # print("Fruit:", fruit_col, "Paddle:", paddle_left, "-", paddle_right, "Policy:", policy)
 
         # For value: 0 unless it's terminal, or you want to use a heuristic
-        value = self.gsm.evaluate_state(state)
+        value = self.gsm.evaluate_state(abstract_state)
         return policy, value
