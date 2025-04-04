@@ -61,7 +61,7 @@ def visualize_search_tree(search_tree: Set[Node],
     g.layout(prog="twopi")
     g.draw(f"plots/{file_name}")
 
-    logger.info("Finished creating plot of graph!")
+    logger.info(f"Finished creating plot of graph! Saved at plots/{file_name}")
 
 
 def _mark_longest_path_nodes(g, root_nodes):
