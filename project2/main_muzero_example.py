@@ -1,13 +1,8 @@
 import torch
 
 from project2 import config
-# Import our modules
 from project2.games.catch_game_state_manager import CatchGameStateManager
 from project2.neural_net_manager import NeuralNetManager
-
-
-# Ensure the project2 module can be imported
-# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def main():
@@ -36,6 +31,7 @@ def main():
     print("\nNeural Network Outputs:")
     print(f"Value: {network_output.value.item()}")
     print(f"Policy logits shape: {network_output.policy_logits.shape}")
+    print(f"Policy logits {network_output.policy_logits}")
 
     # Get legal actions
     legal_actions = game_manager.get_legal_actions(state)
@@ -48,10 +44,7 @@ def main():
     action_tensor = torch.tensor([action], dtype=torch.long)
 
     # Run recurrent inference
-    next_output = net_manager.recurrent_inference(
-        network_output.hidden_state,
-        action_tensor
-    )
+    next_output = net_manager.recurrent_inference(network_output.hidden_state, action_tensor)
 
     print("\nAfter action, predicted by network:")
     print(f"Next state value: {next_output.value.item()}")
