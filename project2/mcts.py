@@ -7,7 +7,7 @@ from project2.Action import Action
 from project2.config import logging_config
 from project2.models.super_model import Model
 from project2.node import Node
-from project2.visualize_search_tree import visualize_search_tree_with_trajectory
+from project2.utils.visualize_search_tree import visualize_search_tree_with_trajectory
 
 
 class MCTS:
@@ -136,7 +136,7 @@ class MCTS:
         rewards: List[float] = [self.reward_table[edge] for edge in trajectory[
                                                                     0:-1]]  # Not including last element of trajectory, which is only the leaf node
 
-        self.logger.debug(f"Performing backup... Rewards {rewards}, ")
+        self.logger.debug(f"Performing backup... Rewards {rewards}")
 
         # Generate cumulative discounted rewards for updating edge values. k = 0 is the first node in the trajectory
         # The cum rewards are bootstrapped from the value of the last node in trajectory (which comes from the prediction function)
@@ -155,7 +155,7 @@ class MCTS:
             self.mean_value_table[trajectory[k]] = new_q_value
             self.visit_count_table[trajectory[k]] = new_visit_count
             self.logger.debug(
-                f"Updated edge. Old Q {old_q_value}, New Q {new_q_value}, Old V {old_visit_count}, New V {new_visit_count}, Leaf node value {leaf_node_value}, Cum Reward towards leaf {cum_reward_towards_leaf_node}, Cum Reward {cumulative_reward}")
+                f"Updated edge. Old Q {round(old_q_value, 2)}, New Q {round(new_q_value, 2)}, Old V {old_visit_count}, New V {new_visit_count}, Leaf node value {leaf_node_value}, Cum Reward towards leaf {cum_reward_towards_leaf_node}, Cum Reward {cumulative_reward}")
 
     def _select_action(self, node: Node, available_actions: List[Action]) -> Action:
         total_visit_count = sum(map(lambda a: self.visit_count_table[node, a], available_actions))
@@ -173,6 +173,7 @@ class MCTS:
         # return self.mean_value_table[(node, action)] + self.policy_table[(node, action)] * math.sqrt(
         #     total_visit_count) / (1 + visit_count) * (
         #         self.c_1 + math.log((total_visit_count + self.c_2 + 1) / self.c_2))
+        # TODO Remove this after finished troubleshooting backprop
         return self.mean_value_table[(node, action)]
 
     def _expand_node(self, node: Node) -> float:
