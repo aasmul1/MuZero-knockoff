@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from project2.Action import Action
 
@@ -16,12 +17,17 @@ class Node:
         return f"{self.hidden_state}"
 
     def __hash__(self):
-        return hash(self.hidden_state.tobytes())
+        if isinstance(self.hidden_state, np.ndarray):
+            return hash(self.hidden_state.tobytes())
+        elif isinstance(self.hidden_state, torch.Tensor):
+            if self.hidden_state.device.type != "cpu":
+                tensor = self.hidden_state.cpu()
+            tensor = self.hidden_state.detach()
+            return hash(tensor.numpy().tobytes())
 
     def __eq__(self, other):
         if isinstance(other, Node):
-            # Check equality based on hidden_state
-            return np.array_equal(self.hidden_state, other.hidden_state)
+            return hash(self) == hash(other)
         return False
 
     def set_available_actions(self, available_actions: list[Action]):

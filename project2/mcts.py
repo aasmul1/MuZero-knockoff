@@ -2,7 +2,10 @@ import logging
 from typing import Dict, Tuple, List, Set
 
 import numpy as np
+import torch
 
+from neural_net import MuZeroNetwork
+from project2 import config
 from project2.Action import Action
 from project2.config import logging_config
 from project2.models.super_model import Model
@@ -11,7 +14,7 @@ from project2.utils.visualize_search_tree import visualize_search_tree_with_traj
 
 
 class MCTS:
-    def __init__(self, model: Model, initial_available_actions: List[Action], c_1: float = 1.25, c_2: float = 19.652,
+    def __init__(self, model: Model, c_1: float = 1.25, c_2: float = 19.652,
                  simulations: int = 800,
                  steps: int = 5, discount: float = 0.997):
         self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
@@ -24,7 +27,6 @@ class MCTS:
         self.steps = steps  # The maximum number of hypothetical steps per simulation
         self.discount = discount
         self.model = model
-        self.initial_available_actions = initial_available_actions  # TODO Do we know this?
 
         self.search_tree: Set[Node] = set()
         self.reward_table: Dict[Tuple[Node, Action], float] = dict()  # R(s^(l−1), a^l) = r^l
@@ -70,6 +72,9 @@ class MCTS:
                     # Compute policy and value function for new state with prediction function
                     # Add new node (with value function as attribute?) corresponding to new state to the search tree
                     # Each edge leading out from the newly expanded node is initialized (with the policy)
+
+                    if isinstance(self.model, MuZeroNetwork):
+                        action = torch.tensor(action)
 
                     new_state, reward = self.model.transition(current_node.hidden_state, action)
                     new_node = Node(new_state)
@@ -178,16 +183,26 @@ class MCTS:
 
     def _expand_node(self, node: Node) -> float:
         policy, value = self.model.predict(node.hidden_state)
+
+        # TODO Edit code to avoid this conversion
+        if isinstance(policy, torch.Tensor):
+            policy_dict: Dict = {a: p.item() for a, p in zip(list(range(config.ACTION_SPACE)), policy.flatten())}
+        else:
+            policy_dict: Dict = policy
+
+        print(type(policy_dict), policy_dict)
+
         self.search_tree.add(node)
-        node.set_available_actions(list(policy.keys()))
+        node.set_available_actions(list(policy_dict.keys()))
 
-        self.logger.debug(f"Policy: {policy}, Value: {value}. Available actions in expansion: {list(policy.keys())}")
+        self.logger.debug(
+            f"Policy: {policy_dict}, Value: {value}. Available actions in expansion: {list(policy_dict.keys())}")
 
-        for a in policy.keys():
+        for a in policy_dict.keys():
             # Initialize edge
             self.visit_count_table[(node, a)] = 0
             self.mean_value_table[(node, a)] = 0
-            self.policy_table[(node, a)] = policy[a]
+            self.policy_table[(node, a)] = policy_dict[a]
 
         return value
 
