@@ -4,7 +4,7 @@ from typing import List
 
 from project2.config import logging_config
 from project2.games.catch_game_state_manager import CatchGameStateManager
-from project2.mcts import MCTS
+from project2.mcts_perfect_model import MCTSPerfectModel
 from project2.models.perfect_model import PerfectModel
 from project2.node import Node
 from project2.utils.logging_config import configure_logging
@@ -22,7 +22,7 @@ gs_initial_state = gs_manager.generate_initial_state()
 gs_available_actions = gs_manager.get_legal_actions(gs_initial_state)
 
 model = PerfectModel(gs_manager)
-mcts = MCTS(model, gs_available_actions, simulations=10, discount=1, steps=100, c_1=2, c_2=20000)
+mcts = MCTSPerfectModel(model, gs_available_actions, simulations=10, discount=1, steps=100, c_1=2, c_2=20000)
 
 initial_state = model.represent_state(gs_initial_state)
 available_actions = gs_manager.get_legal_actions(initial_state)
