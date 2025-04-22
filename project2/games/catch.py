@@ -2,7 +2,7 @@ import numpy as np
 from numpy.random import default_rng
 
 class CatchGame:
-    def __init__(self, grid_width=10, grid_height=10, paddle_size=1):
+    def __init__(self, grid_width=5, grid_height=5, paddle_size=2):
         """initialiser game state"""
         self.width = grid_width
         self.height = grid_height

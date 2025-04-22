@@ -13,6 +13,43 @@ class NetworkOutput:
         self.hidden_state = hidden_state
 
 
+def safe_one_hot(tensor, num_classes):
+    """
+    Create a one-hot tensor that works with DirectML by avoiding scatter operations.
+    
+    Args:
+        tensor: Input tensor with class indices
+        num_classes: Number of classes for one-hot encoding
+        
+    Returns:
+        One-hot encoded tensor
+    """
+    # Check if we're on CPU - if so, use the standard function
+    if tensor.device.type == "cpu":
+        return F.one_hot(tensor, num_classes=num_classes).float()
+    
+    # For DirectML or other devices, manually create one-hot tensor
+    # Get tensor shape and add one dimension for one-hot
+    shape = list(tensor.shape)
+    shape.append(num_classes)
+    
+    # Create a zero tensor with the right shape
+    result = torch.zeros(shape, dtype=torch.float32, device=tensor.device)
+    
+    # Handle different tensor dimensions
+    if len(tensor.shape) == 1:
+        # For 1D tensors (batch of indices)
+        for i in range(tensor.shape[0]):
+            idx = tensor[i].item()
+            result[i, idx] = 1.0
+    else:
+        # For 0D tensors (single index)
+        idx = tensor.item()
+        result[idx] = 1.0
+    
+    return result
+
+
 class MuZeroNetwork(nn.Module):
     def __init__(self, observation_dim, action_space, hidden_size, latent_dim):
         """
@@ -78,7 +115,17 @@ class MuZeroNetwork(nn.Module):
         """
         Given a latent state and an action, predicts the next latent state and reward.
         """
-        action_one_hot = F.one_hot(action, num_classes=self.action_space_size).float()
+        # Use the safe one-hot function to avoid DirectML scatter issues
+        action_one_hot = safe_one_hot(action, num_classes=self.action_space_size)
+        
+        # Make sure the dimensions match for concatenation
+        if len(action_one_hot.shape) > len(abstract_state.shape):
+            # If action_one_hot has more dimensions, squeeze it
+            action_one_hot = action_one_hot.squeeze(0)
+        elif len(action_one_hot.shape) < len(abstract_state.shape):
+            # If abstract_state has more dimensions, unsqueeze action_one_hot
+            action_one_hot = action_one_hot.unsqueeze(0)
+            
         x = torch.cat([abstract_state, action_one_hot], dim=-1)
         dynamics_out = self.dynamics_net(x)
         next_state = dynamics_out[:, :self.latent_dim]

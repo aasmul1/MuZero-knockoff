@@ -3,8 +3,8 @@ import torch
 from project2 import config
 from project2.games.catch_game_state_manager import CatchGameStateManager
 from project2.mcts import MCTS
-from project2.neural_net import NetworkOutput
 from project2.neural_net_manager import NeuralNetManager
+from project2.neural_net import NetworkOutput
 from project2.node import Node
 
 done = False
@@ -28,7 +28,7 @@ while not done:
     print("\nNeural Network Outputs:")
     print(f"Value: {network_output.value.item()}")
     print(f"Policy logits shape: {network_output.policy_logits.shape}")
-    print(f"Policy logits {network_output.policy_logits}")
+    print(f"Policy logits values: {network_output.policy_logits.detach().cpu().float().numpy()}")
 
     legal_actions = gsm.get_legal_actions(state)
     print(f"\nLegal actions: {legal_actions}")

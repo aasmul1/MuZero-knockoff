@@ -4,13 +4,14 @@ from typing import Dict, Tuple, List, Set
 import numpy as np
 import torch
 
-from neural_net import MuZeroNetwork
+from project2.neural_net import MuZeroNetwork
 from project2 import config
 from project2.Action import Action
 from project2.config import logging_config
 from project2.models.super_model import Model
 from project2.node import Node
-from project2.utils.visualize_search_tree import visualize_search_tree_with_trajectory
+if logging_config["plot_backups"]:
+    from project2.utils.visualize_search_tree import visualize_search_tree_with_trajectory
 
 
 class MCTS:
@@ -40,7 +41,12 @@ class MCTS:
         self.root_nodes: List[Node] = list()  # Store all root nodes use, i.e. the observed states of the environment
         self.ucb_scores: Dict[Tuple[Node, Action], float] = dict()  # Store all calculated UCB scores
 
-    def run_simulations_and_select_action(self, root_node: Node, available_actions: List[Action]) -> Action:
+    def run_simulations_and_select_action(self, root_node: Node, available_actions: List[int | Action]) -> Action:
+        """Run MCTS simulations and select the best action to take from the root node."""
+        # Convert int actions to Action objects if needed
+        if available_actions and isinstance(available_actions[0], int):
+            available_actions = [Action(a) for a in available_actions]
+        
         if root_node not in self.search_tree:
             self._expand_node(root_node)
             self.logger.debug(f"Root node expanded")
@@ -74,9 +80,36 @@ class MCTS:
                     # Each edge leading out from the newly expanded node is initialized (with the policy)
 
                     if isinstance(self.model, MuZeroNetwork):
-                        action = torch.tensor(action)
-
-                    new_state, reward = self.model.transition(current_node.hidden_state, action)
+                        # Convert action to tensor if needed
+                        if not isinstance(action, torch.Tensor):
+                            # Create a long tensor with action number
+                            action_tensor = torch.tensor([action.number], dtype=torch.long)
+                            # Move to the same device as the hidden state if it's a tensor
+                            if isinstance(current_node.hidden_state, torch.Tensor):
+                                action_tensor = action_tensor.to(current_node.hidden_state.device)
+                        else:
+                            action_tensor = action
+                        
+                        try:
+                            new_state, reward = self.model.transition(current_node.hidden_state, action_tensor)
+                            
+                            # Ensure reward is a scalar
+                            if isinstance(reward, torch.Tensor):
+                                reward = reward.item()
+                        except Exception as e:
+                            self.logger.error(f"Error in transition: {e}")
+                            # Fallback method if transition fails
+                            reward = 0
+                            # Create a random state as fallback
+                            if isinstance(current_node.hidden_state, torch.Tensor):
+                                device = current_node.hidden_state.device
+                                shape = current_node.hidden_state.shape
+                                new_state = torch.zeros(shape, device=device)
+                            else:
+                                new_state = np.zeros_like(current_node.hidden_state)
+                    else:
+                        new_state, reward = self.model.transition(current_node.hidden_state, action)
+                    
                     new_node = Node(new_state)
                     self.reward_table[(current_node, action)] = reward
                     self.state_transition_table[(current_node, action)] = new_node
@@ -184,21 +217,28 @@ class MCTS:
     def _expand_node(self, node: Node) -> float:
         policy, value = self.model.predict(node.hidden_state)
 
-        # TODO Edit code to avoid this conversion
+        # Convert policy to dictionary format based on what type it is
         if isinstance(policy, torch.Tensor):
-            policy_dict: Dict = {a: p.item() for a, p in zip(list(range(config.ACTION_SPACE)), policy.flatten())}
+            # Convert tensor to CPU before using it
+            policy_cpu = policy.detach().cpu()
+            policy_dict = {Action(a): p.item() for a, p in zip(range(config.ACTION_SPACE), policy_cpu.flatten())}
+            value = value.detach().cpu().item() if isinstance(value, torch.Tensor) else value
         else:
-            policy_dict: Dict = policy
-
-        print(type(policy_dict), policy_dict)
+            policy_dict = {Action(a): p for a, p in policy.items()} if isinstance(policy, dict) else policy
 
         self.search_tree.add(node)
-        node.set_available_actions(list(policy_dict.keys()))
+        
+        # Convert policy dict keys to Action objects if they aren't already
+        action_keys = list(policy_dict.keys())
+        if action_keys and not isinstance(action_keys[0], Action):
+            action_keys = [Action(a) for a in action_keys]
+        
+        node.set_available_actions(action_keys)
 
         self.logger.debug(
-            f"Policy: {policy_dict}, Value: {value}. Available actions in expansion: {list(policy_dict.keys())}")
+            f"Policy: {policy_dict}, Value: {value}. Available actions in expansion: {action_keys}")
 
-        for a in policy_dict.keys():
+        for a in action_keys:
             # Initialize edge
             self.visit_count_table[(node, a)] = 0
             self.mean_value_table[(node, a)] = 0

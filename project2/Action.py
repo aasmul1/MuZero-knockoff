@@ -11,3 +11,9 @@ class Action:
     def __eq__(self, other):
         if isinstance(other, Action):
             return self.number == other.number
+        elif isinstance(other, int):
+            return self.number == other
+        return False
+        
+    def __hash__(self):
+        return hash(self.number)

@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-from neural_net import MuZeroNetwork, NetworkOutput
+from project2.neural_net import MuZeroNetwork, NetworkOutput
 
 
 def _get_device():

@@ -8,7 +8,7 @@ from project2.games.generic_game_state_manager import GameStateManager
 class CatchGameStateManager(GameStateManager):
     """Adapter klasse for CatchGame som passer game state manager interface"""
 
-    def __init__(self, grid_width=10, grid_height=10):
+    def __init__(self, grid_width=5, grid_height=5):
         self.game = CatchGame(grid_width, grid_height)
         self.state_cache = {}  # for caching av state transitions
 
