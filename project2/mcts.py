@@ -16,7 +16,7 @@ if logging_config["plot_backups"]:
 
 class MCTS:
     def __init__(self, model: Model, c_1: float = 1.25, c_2: float = 19.652,
-                 simulations: int = 800,
+                 simulations: int = 300,
                  steps: int = 5, discount: float = 0.997):
         self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
 
