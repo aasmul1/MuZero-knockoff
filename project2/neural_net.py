@@ -1,13 +1,54 @@
+from typing import Dict
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class NetworkOutput:
     def __init__(self, value, reward, policy_logits, hidden_state):
-        self.value = value            
-        self.reward = reward          
-        self.policy_logits = policy_logits  
-        self.hidden_state = hidden_state    
+        self.value = value
+        self.reward = reward
+        self.policy_logits = policy_logits
+        self.hidden_state = hidden_state
+
+
+def safe_one_hot(tensor, num_classes):
+    """
+    Create a one-hot tensor that works with DirectML by avoiding scatter operations.
+    
+    Args:
+        tensor: Input tensor with class indices
+        num_classes: Number of classes for one-hot encoding
+        
+    Returns:
+        One-hot encoded tensor
+    """
+    # Check if we're on CPU - if so, use the standard function
+    if tensor.device.type == "cpu":
+        return F.one_hot(tensor, num_classes=num_classes).float()
+    
+    # For DirectML or other devices, manually create one-hot tensor
+    # Get tensor shape and add one dimension for one-hot
+    shape = list(tensor.shape)
+    shape.append(num_classes)
+    
+    # Create a zero tensor with the right shape
+    result = torch.zeros(shape, dtype=torch.float32, device=tensor.device)
+    
+    # Handle different tensor dimensions
+    if len(tensor.shape) == 1:
+        # For 1D tensors (batch of indices)
+        for i in range(tensor.shape[0]):
+            idx = tensor[i].item()
+            result[i, idx] = 1.0
+    else:
+        # For 0D tensors (single index)
+        idx = tensor.item()
+        result[idx] = 1.0
+    
+    return result
+
 
 class MuZeroNetwork(nn.Module):
     def __init__(self, observation_dim, action_space, hidden_size, latent_dim):
@@ -24,10 +65,10 @@ class MuZeroNetwork(nn.Module):
             self.action_space_size = action_space
         else:
             self.action_space_size = len(action_space)
-            
+
         self.latent_dim = latent_dim
-        self._training_steps = 0  
-        
+        self._training_steps = 0
+
         # Representation network: converts raw observation to latent state.
         self.representation_net = nn.Sequential(
             nn.Flatten(),
@@ -35,7 +76,7 @@ class MuZeroNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, latent_dim)
         )
-        
+
         # Prediction network: from latent state to (policy_logits, value).
         # The network outputs a vector of size (action_space_size + 1), where the first
         # action_space_size elements are policy logits and the final element is the value.
@@ -44,7 +85,7 @@ class MuZeroNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, self.action_space_size + 1)
         )
-        
+
         # Dynamics network: from (latent state, action) to (next latent state, reward).
         # The input is the concatenation of the latent state and a one-hot encoded action.
         # The output is a vector of size (latent_dim + 1): the first latent_dim values are
@@ -54,13 +95,13 @@ class MuZeroNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, latent_dim + 1)
         )
-        
+
     def represent_state(self, observation):
         """
         Converts a raw observation into a latent state.
         """
         return self.representation_net(observation)
-    
+
     def predict(self, abstract_state):
         """
         Given a latent state, outputs the policy logits and value.
@@ -69,12 +110,22 @@ class MuZeroNetwork(nn.Module):
         policy_logits = output[:, :self.action_space_size]
         value = output[:, self.action_space_size]
         return policy_logits, value
-    
+
     def transition(self, abstract_state, action):
         """
         Given a latent state and an action, predicts the next latent state and reward.
         """
-        action_one_hot = F.one_hot(action, num_classes=self.action_space_size).float()
+        # Use the safe one-hot function to avoid DirectML scatter issues
+        action_one_hot = safe_one_hot(action, num_classes=self.action_space_size)
+        
+        # Make sure the dimensions match for concatenation
+        if len(action_one_hot.shape) > len(abstract_state.shape):
+            # If action_one_hot has more dimensions, squeeze it
+            action_one_hot = action_one_hot.squeeze(0)
+        elif len(action_one_hot.shape) < len(abstract_state.shape):
+            # If abstract_state has more dimensions, unsqueeze action_one_hot
+            action_one_hot = action_one_hot.unsqueeze(0)
+            
         x = torch.cat([abstract_state, action_one_hot], dim=-1)
         dynamics_out = self.dynamics_net(x)
         next_state = dynamics_out[:, :self.latent_dim]
@@ -100,7 +151,7 @@ class MuZeroNetwork(nn.Module):
         policy_logits, value = self.predict(next_state)
         return NetworkOutput(value, reward, policy_logits, next_state)
 
-    def get_weights(self):
+    def get_weights(self) -> Dict:
         """
         Returns the current network weights.
         """

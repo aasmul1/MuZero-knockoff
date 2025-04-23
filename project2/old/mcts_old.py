@@ -3,7 +3,7 @@ import random
 from typing import Dict
 
 from project2.game import Game
-from project2.node_old import NodeOld
+from project2.old.node_old import NodeOld
 
 MCTS_POLICY_EXPLORE = 100
 
