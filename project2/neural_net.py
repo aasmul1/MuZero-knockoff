@@ -24,16 +24,20 @@ def safe_one_hot(tensor, num_classes):
     Returns:
         One-hot encoded tensor
     """
+    # Convert tensor to int64 to ensure it contains valid indices
+    if tensor.dtype != torch.int64 and tensor.dtype != torch.long:
+        tensor = tensor.to(torch.int64)
+        
     # Check if we're on CPU - if so, use the standard function
     if tensor.device.type == "cpu":
-        return F.one_hot(tensor, num_classes=num_classes).float()
+        return F.one_hot(tensor, num_classes=num_classes).float()  # Ensure float32
     
     # For DirectML or other devices, manually create one-hot tensor
     # Get tensor shape and add one dimension for one-hot
     shape = list(tensor.shape)
     shape.append(num_classes)
     
-    # Create a zero tensor with the right shape
+    # Create a zero tensor with the right shape (explicitly float32)
     result = torch.zeros(shape, dtype=torch.float32, device=tensor.device)
     
     # Handle different tensor dimensions
@@ -100,12 +104,19 @@ class MuZeroNetwork(nn.Module):
         """
         Converts a raw observation into a latent state.
         """
+        # Ensure float32
+        if isinstance(observation, torch.Tensor) and observation.dtype != torch.float32:
+            observation = observation.to(dtype=torch.float32)
         return self.representation_net(observation)
 
     def predict(self, abstract_state):
         """
         Given a latent state, outputs the policy logits and value.
         """
+        # Ensure float32
+        if isinstance(abstract_state, torch.Tensor) and abstract_state.dtype != torch.float32:
+            abstract_state = abstract_state.to(dtype=torch.float32)
+        
         output = self.prediction_net(abstract_state)
         policy_logits = output[:, :self.action_space_size]
         value = output[:, self.action_space_size]
@@ -115,6 +126,10 @@ class MuZeroNetwork(nn.Module):
         """
         Given a latent state and an action, predicts the next latent state and reward.
         """
+        # Ensure abstract_state is float32
+        if isinstance(abstract_state, torch.Tensor) and abstract_state.dtype != torch.float32:
+            abstract_state = abstract_state.to(dtype=torch.float32)
+            
         # Use the safe one-hot function to avoid DirectML scatter issues
         action_one_hot = safe_one_hot(action, num_classes=self.action_space_size)
         
@@ -137,6 +152,10 @@ class MuZeroNetwork(nn.Module):
         Runs representation and prediction: from raw observation to latent state, then
         predicts the policy and value. Reward is set to zero at the initial inference.
         """
+        # Ensure float32
+        if isinstance(observation, torch.Tensor) and observation.dtype != torch.float32:
+            observation = observation.to(dtype=torch.float32)
+            
         abstract_state = self.represent_state(observation)
         policy_logits, value = self.predict(abstract_state)
         reward = torch.zeros_like(value)
@@ -147,6 +166,10 @@ class MuZeroNetwork(nn.Module):
         Given a latent state and an action, applies the dynamics network to get the next
         latent state and reward, then uses the prediction network on that new latent state.
         """
+        # Ensure float32
+        if isinstance(hidden_state, torch.Tensor) and hidden_state.dtype != torch.float32:
+            hidden_state = hidden_state.to(dtype=torch.float32)
+            
         next_state, reward = self.transition(hidden_state, action)
         policy_logits, value = self.predict(next_state)
         return NetworkOutput(value, reward, policy_logits, next_state)

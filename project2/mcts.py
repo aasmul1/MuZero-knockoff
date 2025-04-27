@@ -215,12 +215,19 @@ class MCTS:
         return self.mean_value_table[(node, action)]
 
     def _expand_node(self, node: Node) -> float:
+        # Ensure node's hidden state is float32 if it's a tensor
+        if isinstance(node.hidden_state, torch.Tensor) and node.hidden_state.dtype != torch.float32:
+            node.hidden_state = node.hidden_state.to(dtype=torch.float32)
+            
         policy, value = self.model.predict(node.hidden_state)
 
         # Convert policy to dictionary format based on what type it is
         if isinstance(policy, torch.Tensor):
             # Convert tensor to CPU before using it
             policy_cpu = policy.detach().cpu()
+            # Ensure policy is float32
+            if policy_cpu.dtype != torch.float32:
+                policy_cpu = policy_cpu.to(dtype=torch.float32)
             policy_dict = {Action(a): p.item() for a, p in zip(range(config.ACTION_SPACE), policy_cpu.flatten())}
             value = value.detach().cpu().item() if isinstance(value, torch.Tensor) else value
         else:

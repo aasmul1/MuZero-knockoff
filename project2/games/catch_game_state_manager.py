@@ -100,7 +100,7 @@ class CatchGameStateManager(GameStateManager):
         # Use the game's built-in state_to_observation method to get channels
         observation_channels = self.game.state_to_observation(state)
 
-        # Convert to tensor
+        # Convert to tensor with explicit float32 dtype
         tensor_observation = torch.tensor(observation_channels, dtype=torch.float32)
 
         # Add batch dimension if needed (neural networks typically expect batch dimension)

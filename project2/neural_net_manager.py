@@ -25,6 +25,8 @@ class NeuralNetManager:
         self.config = config
         self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
         self.device = _get_device()
+        # Set default tensor type to float32
+        torch.set_default_tensor_type(torch.FloatTensor)
         self.model = MuZeroNetwork(
             observation_dim=self.config.OBSERVATION_DIM,
             action_space=self.config.ACTION_SPACE,
@@ -36,11 +38,13 @@ class NeuralNetManager:
         self.logger.info(f"Using device {self.device}")
 
     def initial_inference(self, observation: torch.Tensor) -> NetworkOutput:
-        observation = observation.to(self.device)
+        # Ensure observation is float32
+        observation = observation.to(self.device, dtype=torch.float32)
         return self.model.initial_inference(observation)
 
     def recurrent_inference(self, abstract_state: torch.Tensor, action: torch.Tensor) -> NetworkOutput:
-        hidden_state = abstract_state.to(self.device)
+        # Ensure abstract_state is float32
+        hidden_state = abstract_state.to(self.device, dtype=torch.float32)
         action = action.to(self.device)
         return self.model.recurrent_inference(hidden_state, action)
 
@@ -73,11 +77,12 @@ class NeuralNetManager:
         return loss.item()
 
     def compute_loss(self, batch):
-        observations = batch["observations"].to(self.device)
-        target_policies = batch["target_policy"].to(self.device)
-        target_rewards = batch["target_reward"].to(self.device)
-        target_values = batch["target_value"].to(self.device)
-        actions = batch["actions"].to(self.device)
+        # Ensure all tensors are float32
+        observations = batch["observations"].to(self.device, dtype=torch.float32)
+        target_policies = batch["target_policy"].to(self.device, dtype=torch.float32)
+        target_rewards = batch["target_reward"].to(self.device, dtype=torch.float32)
+        target_values = batch["target_value"].to(self.device, dtype=torch.float32)
+        actions = batch["actions"].to(self.device)  # Keep as long for indices
 
         out = self.model.initial_inference(observations)
 

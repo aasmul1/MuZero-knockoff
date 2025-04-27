@@ -7,7 +7,7 @@ from project2.neural_net_manager import NeuralNetManager
 from project2.neural_net import NetworkOutput
 from project2.node import Node
 from project2.replay_buffer import ReplayBuffer
-from project2.game import Game
+from project2.buffer_game import Game
 
 
 def play_and_record_game():
@@ -25,7 +25,7 @@ def play_and_record_game():
 
     while not done:
         
-        game.observation.append(observation_tensor.clone())
+        game.observations.append(observation_tensor.clone())
         network_output: NetworkOutput = nnm.initial_inference(observation_tensor)
 
         root_node = Node(network_output.hidden_state)
@@ -55,7 +55,7 @@ def play_and_record_game():
     
     return replay_buffer
 
-# Example usage
+# Example 
 if __name__ == "__main__":
     replay_buffer = play_and_record_game()
     # Now we can sample from the buffer for training
