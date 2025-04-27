@@ -88,23 +88,24 @@ class NeuralNetManager:
 
         # Use KL divergence loss for policy - target_policies are now probability distributions
         log_softmax_policies = F.log_softmax(out.policy_logits, dim=1)
-        loss_policy = -(target_policies[:, 0] * log_softmax_policies).sum(dim=1).mean()
+        loss_policy = -(target_policies * log_softmax_policies).sum(dim=1).mean()
 
         loss_value = F.mse_loss(out.value, target_values[:, 0])
         total_reward_loss = 0.0
 
         hidden_state = out.hidden_state
 
-        for k in range(actions.size(1)):
+        max_unroll = min(actions.size(1), target_values.size(1) - 1, target_rewards.size(1))
+        for k in range(max_unroll):
+
             out = self.model.recurrent_inference(hidden_state, actions[:, k])
 
-            # Policy loss using KL divergence
-            log_softmax_policies = F.log_softmax(out.policy_logits, dim=1)
-            loss_policy += -(target_policies[:, k + 1] * log_softmax_policies).sum(dim=1).mean()
-
+            # Only value and reward losses during recurrent steps
             loss_value += F.mse_loss(out.value, target_values[:, k + 1])
-            total_reward_loss += F.mse_loss(out.reward, target_rewards[:, k])
+            min_size = min(out.reward.shape[0], target_rewards[:, k].shape[0])
+            total_reward_loss += F.mse_loss(out.reward[:min_size], target_rewards[:min_size, k])
             hidden_state = out.hidden_state
+
 
         total_loss = loss_policy + loss_value + total_reward_loss
         return total_loss

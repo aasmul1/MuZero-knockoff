@@ -109,19 +109,14 @@ class MuZeroNetwork(nn.Module):
             observation = observation.to(dtype=torch.float32)
         return self.representation_net(observation)
 
-    def predict(self, abstract_state):
-        """
-        Given a latent state, outputs the policy logits and value.
-        """
-        # Ensure float32
-        if isinstance(abstract_state, torch.Tensor) and abstract_state.dtype != torch.float32:
-            abstract_state = abstract_state.to(dtype=torch.float32)
-        
-        output = self.prediction_net(abstract_state)
-        policy_logits = output[:, :self.action_space_size]
-        value = output[:, self.action_space_size]
+    def predict(self, hidden_state: torch.Tensor):
+        self.eval()  
+        with torch.no_grad():
+            out = self.prediction_net(hidden_state.float())
+            policy_logits = out[:, :-1]
+            value = out[:, -1]
         return policy_logits, value
-
+    
     def transition(self, abstract_state, action):
         """
         Given a latent state and an action, predicts the next latent state and reward.
