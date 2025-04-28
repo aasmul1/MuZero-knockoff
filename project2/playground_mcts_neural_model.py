@@ -6,46 +6,51 @@ from project2.mcts import MCTS
 from project2.neural_net_manager import NeuralNetManager
 from project2.neural_net import NetworkOutput
 from project2.node import Node
+from project2.replay_buffer import ReplayBuffer
+from project2.buffer_game import Game
 
-done = False
 
-gsm = CatchGameStateManager()
-nnm = NeuralNetManager(config)
-mcts = MCTS(nnm.model)
+def play_and_record_game():
 
-state = gsm.generate_initial_state()
-observation_tensor = gsm.state_to_tensor(state)
+    gsm = CatchGameStateManager()
+    nnm = NeuralNetManager(config)
+    mcts = MCTS(nnm.model)
+    replay_buffer = ReplayBuffer(config)
+    
+    game = Game()
 
-print(f"Initial state shape: {state.shape}")
-print(f"Observation tensor shape: {observation_tensor.shape}")
-print(f"Flattened observation size: {observation_tensor.flatten().shape[0]}")
-print(f"Config OBSERVATION_DIM: {config.OBSERVATION_DIM}")
-print(f"Config ACTION_SPACE: {config.ACTION_SPACE}")
-
-while not done:
-    network_output: NetworkOutput = nnm.initial_inference(observation_tensor)
-
-    print("\nNeural Network Outputs:")
-    print(f"Value: {network_output.value.item()}")
-    print(f"Policy logits shape: {network_output.policy_logits.shape}")
-    print(f"Policy logits values: {network_output.policy_logits.detach().cpu().float().numpy()}")
-
-    legal_actions = gsm.get_legal_actions(state)
-    print(f"\nLegal actions: {legal_actions}")
-
-    action = mcts.run_simulations_and_select_action(Node(network_output.hidden_state), legal_actions)
-
-    action_tensor = torch.tensor([action.number], dtype=torch.long)
-
-    next_output: NetworkOutput = nnm.recurrent_inference(network_output.hidden_state, action_tensor)
-
-    print("\nAfter action, predicted by network:")
-    print(f"Next state value: {next_output.value.item()}")
-    print(f"Predicted reward: {next_output.reward.item()}")
-
-    state, reward, done = gsm.get_next_state_and_reward(state, action)
+    state = gsm.generate_initial_state()
     observation_tensor = gsm.state_to_tensor(state)
+    done = False
 
-    print(f"\nActual next step results:")
-    print(f"Reward: {reward}")
-    print(f"Game done: {done}")
+    while not done:
+        
+        game.observations.append(observation_tensor.clone())
+        network_output: NetworkOutput = nnm.initial_inference(observation_tensor)
+
+        root_node = Node(network_output.hidden_state)
+        
+        legal_actions = gsm.get_legal_actions(state)
+
+        action = mcts.run_simulations_and_select_action(root_node, legal_actions)
+        
+        visit_counts = {}
+        for a in legal_actions:
+            visit_counts[a] = mcts.visit_count_table.get((root_node, a), 0)
+            
+        game.store_search_statistics(visit_counts, root_node)
+        
+        game.values.append(network_output.value.item())
+        
+        next_state, reward, done = gsm.get_next_state_and_reward(state, action)
+        
+        game.actions.append(action)
+        game.rewards.append(reward)
+        
+        state = next_state
+        
+        observation_tensor = gsm.state_to_tensor(state)
+    
+    replay_buffer.save_game(game)
+    
+    return replay_buffer
