@@ -9,8 +9,8 @@ class ReplayBuffer:
         self.buffer_size = getattr(config, "REPLAY_BUFFER_SIZE", 10000)  # Default if not specified
         self.batch_size = getattr(config, "BATCH_SIZE", 128)  # Default if not specified
         self.num_unroll_steps = getattr(config, "NUM_UNROLL_STEPS", 5)  # For n-step returns
-        self.td_steps = getattr(config, "TD_STEPS", 10)  # For bootstrapping
-        self.discount = getattr(config, "DISCOUNT", 0.997)  # Discount factor for rewards
+        self.td_steps = getattr(config, "TD_STEPS", 10)  
+        self.discount = getattr(config, "DISCOUNT", 0.997)  
         self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
         
         self.buffer = []
