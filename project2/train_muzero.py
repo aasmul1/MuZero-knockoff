@@ -47,7 +47,7 @@ def main():
                 buffer_game.observations.append(observation_tensor.clone())
                 buffer_game.actions.append(action)   # no need to wrap again
 
-                next_state, reward, done = game.step(action.number)   # <-- use action.number here too!!
+                next_state, reward, done = game.step(action.number)   # <-- use action.number 
 
                 buffer_game.rewards.append(reward)
 

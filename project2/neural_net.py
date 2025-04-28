@@ -110,12 +110,11 @@ class MuZeroNetwork(nn.Module):
         return self.representation_net(observation)
 
     def predict(self, hidden_state: torch.Tensor):
-        self.eval()  
-        with torch.no_grad():
-            out = self.prediction_net(hidden_state.float())
-            policy_logits = out[:, :-1]
-            value = out[:, -1]
+        out = self.prediction_net(hidden_state)
+        policy_logits = out[:, :-1]
+        value = out[:, -1]
         return policy_logits, value
+
     
     def transition(self, abstract_state, action):
         """
