@@ -10,9 +10,8 @@ from project2.neural_net import MuZeroNetwork, NetworkOutput
 
 
 def _get_device():
-    if os.name == 'nt':  # Windows
+    if os.name == 'nt':
         import torch_directml
-        # Will use AMD GPU if available and supported, else cpu
         device = torch_directml.device(torch_directml.default_device())
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -25,7 +24,6 @@ class NeuralNetManager:
         self.config = config
         self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
         self.device = _get_device()
-        # Set default tensor type to float32
         torch.set_default_tensor_type(torch.FloatTensor)
         self.model = MuZeroNetwork(
             observation_dim=self.config.OBSERVATION_DIM,
@@ -38,26 +36,18 @@ class NeuralNetManager:
         self.logger.info(f"Using device {self.device}")
 
     def initial_inference(self, observation: torch.Tensor) -> NetworkOutput:
-        # Ensure observation is float32
         observation = observation.to(self.device, dtype=torch.float32)
         return self.model.initial_inference(observation)
 
     def recurrent_inference(self, abstract_state: torch.Tensor, action: torch.Tensor) -> NetworkOutput:
-        # Ensure abstract_state is float32
         hidden_state = abstract_state.to(self.device, dtype=torch.float32)
         action = action.to(self.device)
         return self.model.recurrent_inference(hidden_state, action)
 
     def get_weights(self) -> Dict:
-        """
-        Returns the current network weights.
-        """
         return self.model.get_weights()
 
     def get_training_steps(self) -> int:
-        """
-        Return the current trainig steps
-        """
         return self.model.training_steps()
 
     def save(self, filepath: str) -> None:
@@ -69,43 +59,66 @@ class NeuralNetManager:
     def train_step(self, batch):
         self.model.train()
         self.optimizer.zero_grad()
-        loss = self.compute_loss(batch)
-        loss.backward()
+        policy_loss, value_loss, reward_loss = self.compute_loss(batch)
+        total_loss = policy_loss + value_loss + reward_loss
+        total_loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
         self.optimizer.step()
         self.model.increment_training_steps()
-        return loss.item()
+        
+        return {
+            'total_loss': total_loss.item(),
+            'policy_loss': policy_loss.item(),
+            'value_loss': value_loss.item(),
+            'reward_loss': reward_loss.item()
+        }
 
     def compute_loss(self, batch):
-        # Ensure all tensors are float32
+        if any(len(batch[key]) == 0 for key in batch):
+            return torch.tensor(0.0, device=self.device, requires_grad=True)
+            
         observations = batch["observations"].to(self.device, dtype=torch.float32)
         target_policies = batch["target_policy"].to(self.device, dtype=torch.float32)
         target_rewards = batch["target_reward"].to(self.device, dtype=torch.float32)
         target_values = batch["target_value"].to(self.device, dtype=torch.float32)
-        actions = batch["actions"].to(self.device)  # Keep as long for indices
+        actions = batch["actions"].to(self.device)
 
         out = self.model.initial_inference(observations)
 
-        # Use KL divergence loss for policy - target_policies are now probability distributions
         log_softmax_policies = F.log_softmax(out.policy_logits, dim=1)
-        loss_policy = -(target_policies * log_softmax_policies).sum(dim=1).mean()
-
-        loss_value = F.mse_loss(out.value, target_values[:, 0])
-        total_reward_loss = 0.0
+        
+        policy_loss = 0.0
+        if target_policies.size(0) > 0 and target_policies.size(1) > 0:
+            first_policy = target_policies[:, 0, :]
+            policy_loss = -(first_policy * log_softmax_policies).sum(dim=1).mean()
+        
+        value_loss = 0.0
+        if target_values.size(0) > 0 and target_values.size(1) > 0:
+            value_loss = F.mse_loss(out.value, target_values[:, 0])
+        
+        reward_loss = 0.0
 
         hidden_state = out.hidden_state
+        
+        if actions.size(0) > 0 and actions.size(1) > 0:
+            max_unroll = min(actions.size(1), 
+                           target_values.size(1) - 1 if target_values.size(1) > 0 else 0,
+                           target_rewards.size(1) if target_rewards.size(1) > 0 else 0)
+            
+            if max_unroll > 0:
+                for k in range(max_unroll):
+                    action_indices = actions[:, k]
+                    
+                    if k >= target_values.size(1) - 1 or k >= target_rewards.size(1):
+                        break
+                        
+                    out = self.model.recurrent_inference(hidden_state, action_indices)
+                    
+                    value_loss += F.mse_loss(out.value, target_values[:, k + 1])
+                    
+                    reward_loss += F.mse_loss(out.reward, target_rewards[:, k])
+                    
+                    hidden_state = out.hidden_state
 
-        max_unroll = min(actions.size(1), target_values.size(1) - 1, target_rewards.size(1))
-        for k in range(max_unroll):
-
-            out = self.model.recurrent_inference(hidden_state, actions[:, k])
-
-            # Only value and reward losses during recurrent steps
-            loss_value += F.mse_loss(out.value, target_values[:, k + 1])
-            min_size = min(out.reward.shape[0], target_rewards[:, k].shape[0])
-            total_reward_loss += F.mse_loss(out.reward[:min_size], target_rewards[:min_size, k])
-            hidden_state = out.hidden_state
-
-
-        total_loss = loss_policy + loss_value + total_reward_loss
-        return total_loss
+        return policy_loss, value_loss, reward_loss
+        

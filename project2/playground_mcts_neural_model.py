@@ -54,10 +54,3 @@ def play_and_record_game():
     replay_buffer.save_game(game)
     
     return replay_buffer
-
-# Example 
-if __name__ == "__main__":
-    replay_buffer = play_and_record_game()
-    # Now we can sample from the buffer for training
-    batch = replay_buffer.sample_batch()
-    print(f"Sampled batch with {len(batch['observations'])} examples")
