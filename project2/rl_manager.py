@@ -60,17 +60,17 @@ def train_muzero(config=default_config):
         
         for game_idx in tqdm(range(games_per_iteration), desc="Self-play games"):
             try:
-                game_buffer = play_and_record_game(config, nnm)  
+                game = play_and_record_game(config, nnm)  
                 
-                for game in game_buffer.buffer:
-                    total_reward = sum(game.rewards) if game.rewards else 0
-                    game_length = len(game.observations)
+                
+                total_reward = sum(game.rewards) if game.rewards else 0
+                game_length = len(game.observations)
+                   
+                game_rewards.append(total_reward)
+                game_lengths.append(game_length)
                     
-                    game_rewards.append(total_reward)
-                    game_lengths.append(game_length)
-                    
-                    replay_buffer.save_game(game)
-                    total_games += 1
+                replay_buffer.save_game(game)
+                total_games += 1
                     
             except Exception as e:
                 logger.error(f"Error during self-play game {game_idx}: {e}")

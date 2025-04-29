@@ -12,7 +12,6 @@ from project2.buffer_game import Game
 def play_and_record_game(config, neural_net_manager):
     gsm = CatchGameStateManager(config)
     mcts = MCTS(neural_net_manager.model, config)  
-    replay_buffer = ReplayBuffer(config)
     
     game = Game()
 
@@ -48,6 +47,4 @@ def play_and_record_game(config, neural_net_manager):
         
         observation_tensor = gsm.state_to_tensor(state)
     
-    replay_buffer.save_game(game)
-    
-    return replay_buffer
+    return game
