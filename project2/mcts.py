@@ -51,7 +51,7 @@ class MCTS:
     def _run_simulations(self, root_node: Node):
         num_expanded_nodes = 0
         start_time = time.time()
-        max_simulation_time = 30
+        max_simulation_time = 120
 
         for simulation in range(self.simulations):
             if time.time() - start_time > max_simulation_time:
