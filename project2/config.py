@@ -4,7 +4,7 @@ import logging
 LATENT_DIM = 64
 HIDDEN_SIZE = 128
 ACTION_SPACE = 3
-OBSERVATION_DIM = 75
+OBSERVATION_DIM = 147
 LEARNING_RATE = 0.0005
 
 # Replay buffer parameters
