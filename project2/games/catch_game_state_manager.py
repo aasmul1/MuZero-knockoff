@@ -8,9 +8,10 @@ from project2.games.generic_game_state_manager import GameStateManager
 class CatchGameStateManager(GameStateManager):
     """Adapter klasse for CatchGame som passer game state manager interface"""
 
-    def __init__(self, grid_width=5, grid_height=5):
-        self.game = CatchGame(grid_width, grid_height)
-        self.state_cache = {}  # for caching av state transitions
+    def __init__(self, config):
+        self.config = config
+        self.game = CatchGame(self.config)
+        self.state_cache = {}  
 
     def generate_initial_state(self):
         """generer initial game state"""
@@ -18,38 +19,30 @@ class CatchGameStateManager(GameStateManager):
 
     def get_legal_actions(self, state):
         """returnerer alle lovlige actions for en state"""
-        # lag temp game med denne staten for action kalkulering
         temp_game = self._create_temp_game(state)
         return temp_game.get_legal_actions()
 
     def get_next_state_and_reward(self, state, action):
         """returnerer neste state og reward gitt state og action"""
-        # sjekk cache først
         cache_key = (state.tobytes(), action)
         if cache_key in self.state_cache:
             return self.state_cache[cache_key]
 
-        # lag temp game med denne staten
         temp_game = self._create_temp_game(state)
 
-        # utfør action
         next_state, reward, done = temp_game.step(action)
 
-        # cache resultatet
         self.state_cache[cache_key] = (next_state, reward, done)
 
         return next_state, reward, done
 
     def is_terminal_state(self, state):
         """sjekk om state er terminal"""
-        # lag temp game med denne staten for å sjekke om terminal
         temp_game = self._create_temp_game(state)
         return temp_game.game_over
 
     def evaluate_state(self, state):
         """enkel heuristisk evaluering for en state"""
-        # for catch, en enkel heuristikk kan være:
-        # - avstanden mellom frukt og paddle (nærmere er bedre)
         temp_game = self._create_temp_game(state)
         if temp_game.game_over:
             return -10
@@ -59,7 +52,6 @@ class CatchGameStateManager(GameStateManager):
         x_distance_to_fruit = abs(fruit_col - paddle_center)
         fruit_distance_to_ground = temp_game.height - temp_game.fruit_pos[0] - 1
 
-        # If fruit is within reach in time to catch it
         if x_distance_to_fruit <= fruit_distance_to_ground:
             return 1
         else:
@@ -67,9 +59,8 @@ class CatchGameStateManager(GameStateManager):
 
     def _create_temp_game(self, state):
         """lag et midlertidig game med gitt state"""
-        temp_game = CatchGame(self.game.width, self.game.height, self.game.paddle_size)
+        temp_game = CatchGame(self.config)
 
-        # finn paddle og fruit posisjoner fra staten
         paddle_indices = np.where(state[-1] == 1)[0]
         if len(paddle_indices) > 0:
             temp_game.paddle_pos = paddle_indices[0]
@@ -97,14 +88,11 @@ class CatchGameStateManager(GameStateManager):
         if state is None:
             state = self.game.get_state()
 
-        # Use the game's built-in state_to_observation method to get channels
         observation_channels = self.game.state_to_observation(state)
 
-        # Convert to tensor with explicit float32 dtype
         tensor_observation = torch.tensor(observation_channels, dtype=torch.float32)
 
-        # Add batch dimension if needed (neural networks typically expect batch dimension)
-        if len(tensor_observation.shape) == 3:  # [channels, height, width]
-            tensor_observation = tensor_observation.unsqueeze(0)  # [1, channels, height, width]
+        if len(tensor_observation.shape) == 3:  
+            tensor_observation = tensor_observation.unsqueeze(0)  
 
         return tensor_observation
