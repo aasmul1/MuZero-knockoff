@@ -6,11 +6,11 @@ import logging
 class ReplayBuffer:
     def __init__(self, config):
         self.config = config
-        self.buffer_size = getattr(config, "REPLAY_BUFFER_SIZE", 10000)  # Default if not specified
-        self.batch_size = getattr(config, "BATCH_SIZE", 128)  # Default if not specified
-        self.num_unroll_steps = getattr(config, "NUM_UNROLL_STEPS", 5)  # For n-step returns
-        self.td_steps = getattr(config, "TD_STEPS", 10)  
-        self.discount = getattr(config, "DISCOUNT", 0.997)  
+        self.buffer_size = self.config.REPLAY_BUFFER_SIZE
+        self.batch_size = self.config.BATCH_SIZE
+        self.num_unroll_steps = self.config.NUM_UNROLL_STEPS
+        self.td_steps = self.config.TD_STEPS 
+        self.discount = self.config.REPLAY_DISCOUNT
         self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
         
         self.buffer = []

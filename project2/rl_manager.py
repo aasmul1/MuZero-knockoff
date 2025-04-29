@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 import time
 from datetime import datetime
 
-from project2 import config
+from project2 import config as default_config
 from project2.neural_net_manager import NeuralNetManager
 from project2.replay_buffer import ReplayBuffer
 from project2.buffer_game import Game
@@ -19,11 +19,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("train_muzero")
 
-def train_muzero(num_iterations=100,
-                games_per_iteration=5,
-                training_steps_per_iteration=10,
-                checkpoint_frequency=10,
-                log_dir='runs'):
+def train_muzero(config=default_config):
+    num_iterations = config.NUM_ITERATIONS
+    games_per_iteration = config.GAMES_PER_ITERATION
+    training_steps_per_iteration = config.TRAINING_STEPS_PER_ITERATION
+    checkpoint_frequency = config.CHECKPOINT_FREQUENCY
+    log_dir = 'tensorboard_logs'
     os.makedirs("models", exist_ok=True)
     
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
@@ -59,7 +60,7 @@ def train_muzero(num_iterations=100,
         
         for game_idx in tqdm(range(games_per_iteration), desc="Self-play games"):
             try:
-                game_buffer = play_and_record_game()  
+                game_buffer = play_and_record_game(config, nnm)  
                 
                 for game in game_buffer.buffer:
                     total_reward = sum(game.rewards) if game.rewards else 0
@@ -153,11 +154,5 @@ def train_muzero(num_iterations=100,
     return nnm, replay_buffer
 
 if __name__ == "__main__":
-    model, buffer = train_muzero(
-        num_iterations=10, 
-        games_per_iteration=2,
-        training_steps_per_iteration=5,
-        checkpoint_frequency=2,
-        log_dir='tensorboard_logs'  
-    )
+    model, buffer = train_muzero(default_config)
     

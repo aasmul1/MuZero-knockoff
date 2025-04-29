@@ -1,27 +1,25 @@
 import numpy as np
 from numpy.random import default_rng
 
+
 class CatchGame:
-    def __init__(self, grid_width=5, grid_height=5, paddle_size=2):
-        """initialiser game state"""
-        self.width = grid_width
-        self.height = grid_height
-        self.paddle_size = paddle_size
-        self.rng = default_rng()  # rng per game
+    def __init__(self, config):
+        self.config = config
+        self.width = self.config.CATCH_GRID_WIDTH
+        self.height = self.config.CATCH_GRID_HEIGHT
+        self.paddle_size = self.config.PADDLE_SIZE
+        self.rng = default_rng()  
         self.reset()
         
     def reset(self):
         """resett spillet til initial state"""
-        # tomt grid
         self.grid = np.zeros((self.height, self.width))
         
-        # plasser paddle nederst i midten
         self.paddle_pos = self.width // 2 - self.paddle_size // 2
         self.update_paddle()
         
-        # initialiser frukt på tilfeldig posisjon på toppen
         self.fruit_pos = [0, self.rng.integers(0, self.width)]
-        self.grid[self.fruit_pos[0], self.fruit_pos[1]] = 2  # 2 representerer frukt
+        self.grid[self.fruit_pos[0], self.fruit_pos[1]] = 2 
         
         self.score = 0
         self.game_over = False
@@ -46,15 +44,14 @@ class CatchGame:
         """returner liste av lovlige actions"""
         actions = []
         if self.paddle_pos > 0:
-            actions.append(0)  # flytt venstre
-        actions.append(1)      # stå stille
+            actions.append(0)  
+        actions.append(1)      
         if self.paddle_pos + self.paddle_size < self.width:
-            actions.append(2)  # flytt høyre
+            actions.append(2)  
         return actions
     
     def step(self, action):
         """utfør action og returner (next_state, reward, done)"""
-        # flytt paddle basert på action
         if action == 0 and self.paddle_pos > 0:
             self.paddle_pos -= 1
         elif action == 2 and self.paddle_pos + self.paddle_size < self.width:
@@ -62,11 +59,9 @@ class CatchGame:
         
         self.update_paddle()
         
-        # flytt frukt nedover
         self.grid[self.fruit_pos[0], self.fruit_pos[1]] = 0
         self.fruit_pos[0] += 1
         
-        # sjekk om frukt er i nederste rad
         reward = 0
         if self.fruit_pos[0] == self.height - 1:
             if self.paddle_pos <= self.fruit_pos[1] < self.paddle_pos + self.paddle_size:
@@ -79,7 +74,6 @@ class CatchGame:
             if not self.game_over:
                 self.fruit_pos = [0, self.rng.integers(0, self.width)]  
         
-        # plasser frukt på grid hvis spillet fortsetter
         if not self.game_over:
             self.grid[self.fruit_pos[0], self.fruit_pos[1]] = 2
         
@@ -136,8 +130,8 @@ class CatchGame:
     
     def clone(self):
         """lag en deep copy av game state for MCTS"""
-        new_game = CatchGame(self.width, self.height, self.paddle_size)
-        new_game.rng = default_rng()  #  new RNG for the clone
+        new_game = CatchGame(self.config)
+        new_game.rng = default_rng()  
         new_game.grid = self.grid.copy()
         new_game.paddle_pos = self.paddle_pos
         new_game.fruit_pos = self.fruit_pos.copy()

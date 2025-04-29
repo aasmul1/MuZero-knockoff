@@ -1,6 +1,5 @@
 import torch
 
-from project2 import config
 from project2.games.catch_game_state_manager import CatchGameStateManager
 from project2.mcts import MCTS
 from project2.neural_net_manager import NeuralNetManager
@@ -10,11 +9,9 @@ from project2.replay_buffer import ReplayBuffer
 from project2.buffer_game import Game
 
 
-def play_and_record_game():
-
-    gsm = CatchGameStateManager()
-    nnm = NeuralNetManager(config)
-    mcts = MCTS(nnm.model)
+def play_and_record_game(config, neural_net_manager):
+    gsm = CatchGameStateManager(config)
+    mcts = MCTS(neural_net_manager.model, config)  
     replay_buffer = ReplayBuffer(config)
     
     game = Game()
@@ -26,7 +23,7 @@ def play_and_record_game():
     while not done:
         
         game.observations.append(observation_tensor.clone())
-        network_output: NetworkOutput = nnm.initial_inference(observation_tensor)
+        network_output: NetworkOutput = neural_net_manager.initial_inference(observation_tensor)
 
         root_node = Node(network_output.hidden_state)
         
