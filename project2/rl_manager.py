@@ -8,9 +8,9 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from project2 import config as default_config
+from project2.actor_neural_model import play_and_record_game
 from project2.config import logging_config
 from project2.neural_net_manager import NeuralNetManager
-from project2.playground_mcts_neural_model import play_and_record_game
 from project2.replay_buffer import ReplayBuffer
 from project2.utils.configure_logging import configure_logging
 
@@ -60,7 +60,7 @@ def train_muzero(config=default_config):
 
         for game_idx in tqdm(range(games_per_iteration), desc="Self-play games"):
             try:
-                game = play_and_record_game(config, nnm)
+                game, gsm = play_and_record_game(config, nnm)
 
                 total_reward = sum(game.rewards) if game.rewards else 0
                 game_length = len(game.observations)
@@ -70,6 +70,9 @@ def train_muzero(config=default_config):
 
                 replay_buffer.save_game(game)
                 total_games += 1
+
+                tqdm.write(
+                    f"Game played. Total reward: {total_reward}, game length: {game_length}, state cache size: {len(gsm.state_cache)}")
 
             except Exception as e:
                 logger.error(f"Error during self-play game {game_idx}: {e}")
