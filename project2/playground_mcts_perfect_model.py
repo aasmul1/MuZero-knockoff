@@ -7,7 +7,7 @@ from project2.games.catch_game_state_manager import CatchGameStateManager
 from project2.mcts_perfect_model import MCTSPerfectModel
 from project2.models.perfect_model import PerfectModel
 from project2.node import Node
-from project2.utils.logging_config import configure_logging
+from project2.utils.configure_logging import configure_logging
 from project2.utils.visualize_search_tree import visualize_search_tree
 
 try:
