@@ -24,7 +24,8 @@ class NeuralNetManager:
         self.config = config
         self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
         self.device = _get_device()
-        torch.set_default_tensor_type(torch.FloatTensor)
+        torch.set_default_dtype(torch.float32)
+        torch.set_default_device(self.device)
         self.model = MuZeroNetwork(
             observation_dim=self.config.OBSERVATION_DIM,
             action_space=self.config.ACTION_SPACE,
@@ -65,7 +66,7 @@ class NeuralNetManager:
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
         self.optimizer.step()
         self.model.increment_training_steps()
-        
+
         return {
             'total_loss': total_loss.item(),
             'policy_loss': policy_loss.item(),
@@ -76,7 +77,7 @@ class NeuralNetManager:
     def compute_loss(self, batch):
         if any(len(batch[key]) == 0 for key in batch):
             return torch.tensor(0.0, device=self.device, requires_grad=True)
-            
+
         observations = batch["observations"].to(self.device, dtype=torch.float32)
         target_policies = batch["target_policy"].to(self.device, dtype=torch.float32)
         target_rewards = batch["target_reward"].to(self.device, dtype=torch.float32)
@@ -86,39 +87,38 @@ class NeuralNetManager:
         out = self.model.initial_inference(observations)
 
         log_softmax_policies = F.log_softmax(out.policy_logits, dim=1)
-        
+
         policy_loss = 0.0
         if target_policies.size(0) > 0 and target_policies.size(1) > 0:
             first_policy = target_policies[:, 0, :]
             policy_loss = -(first_policy * log_softmax_policies).sum(dim=1).mean()
-        
+
         value_loss = 0.0
         if target_values.size(0) > 0 and target_values.size(1) > 0:
             value_loss = F.mse_loss(out.value, target_values[:, 0])
-        
+
         reward_loss = 0.0
 
         hidden_state = out.hidden_state
-        
+
         if actions.size(0) > 0 and actions.size(1) > 0:
-            max_unroll = min(actions.size(1), 
-                           target_values.size(1) - 1 if target_values.size(1) > 0 else 0,
-                           target_rewards.size(1) if target_rewards.size(1) > 0 else 0)
-            
+            max_unroll = min(actions.size(1),
+                             target_values.size(1) - 1 if target_values.size(1) > 0 else 0,
+                             target_rewards.size(1) if target_rewards.size(1) > 0 else 0)
+
             if max_unroll > 0:
                 for k in range(max_unroll):
                     action_indices = actions[:, k]
-                    
+
                     if k >= target_values.size(1) - 1 or k >= target_rewards.size(1):
                         break
-                        
+
                     out = self.model.recurrent_inference(hidden_state, action_indices)
-                    
+
                     value_loss += F.mse_loss(out.value, target_values[:, k + 1])
-                    
+
                     reward_loss += F.mse_loss(out.reward, target_rewards[:, k])
-                    
+
                     hidden_state = out.hidden_state
 
         return policy_loss, value_loss, reward_loss
-        

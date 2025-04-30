@@ -1,5 +1,5 @@
 import numpy as np
-import torch  # Add torch import at the top
+import torch
 
 from project2.games.catch import CatchGame
 from project2.games.generic_game_state_manager import GameStateManager
@@ -11,7 +11,9 @@ class CatchGameStateManager(GameStateManager):
     def __init__(self, config):
         self.config = config
         self.game = CatchGame(self.config)
-        self.state_cache = {}  
+        self.state_cache = {}
+        self.max_total_rewards = config.MAX_TOTAL_REWARDS
+        self.total_reward = 0
 
     def generate_initial_state(self):
         """generer initial game state"""
@@ -26,11 +28,19 @@ class CatchGameStateManager(GameStateManager):
         """returnerer neste state og reward gitt state og action"""
         cache_key = (state.tobytes(), action)
         if cache_key in self.state_cache:
-            return self.state_cache[cache_key]
+            state_tuple = self.state_cache[cache_key]
+            self.total_reward += state_tuple[1]
+            if self.total_reward >= self.max_total_rewards:
+                state_tuple = (state_tuple[0], state_tuple[1], True)  # Done is True
+            return state_tuple
 
         temp_game = self._create_temp_game(state)
 
         next_state, reward, done = temp_game.step(action)
+
+        self.total_reward += reward
+        if self.total_reward >= self.max_total_rewards:
+            done = True
 
         self.state_cache[cache_key] = (next_state, reward, done)
 
@@ -92,7 +102,7 @@ class CatchGameStateManager(GameStateManager):
 
         tensor_observation = torch.tensor(observation_channels, dtype=torch.float32)
 
-        if len(tensor_observation.shape) == 3:  
-            tensor_observation = tensor_observation.unsqueeze(0)  
+        if len(tensor_observation.shape) == 3:
+            tensor_observation = tensor_observation.unsqueeze(0)
 
         return tensor_observation
