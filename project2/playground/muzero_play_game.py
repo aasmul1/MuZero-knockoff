@@ -2,10 +2,10 @@ import logging
 import os
 
 from project2.core import config
-from project2.games.catch_game_state_manager import CatchGameStateManager
 from project2.core.mcts import MCTS
-from project2.models.neural_net_manager import NeuralNetManager
 from project2.core.node import Node
+from project2.games.catch_game_state_manager import CatchGameStateManager
+from project2.models.neural_net_manager import NeuralNetManager
 from project2.utils.configure_logging import configure_logging
 from project2.utils.visualize import visualize_played_game
 
@@ -26,11 +26,11 @@ def main():
 
     state = gsm.generate_initial_state()
     observation_tensor = gsm.state_to_tensor(state)
-    done = False
     states = [state]
+    n_games = 0
 
     # Play game
-    while not done:
+    while n_games < config.NUM_GAMES_TO_PLAY:
         network_output = nnm.initial_inference(observation_tensor)
         root_node = Node(network_output.hidden_state)
         legal_actions = gsm.get_legal_actions(state)
@@ -42,6 +42,9 @@ def main():
         states.append(state)
 
         logger.info(f"New state. Reward {reward}")
+
+        if done:
+            n_games += 1
 
     logger.info(f"Done!")
 

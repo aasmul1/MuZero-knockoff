@@ -150,4 +150,7 @@ def visualize_played_game(states: List, plot_file_name="played_game.png", gif_fi
         loop=0
     )
 
+    for image_path in image_paths:
+        os.remove(image_path)
+
     logger.info(f"Finished creating gif of played game! plots/{gif_file_name}")
