@@ -8,7 +8,7 @@ from project2.mcts_perfect_model import MCTSPerfectModel
 from project2.models.perfect_model import PerfectModel
 from project2.node import Node
 from project2.utils.configure_logging import configure_logging
-from project2.utils.visualize_search_tree import visualize_search_tree
+from project2.utils.visualize import visualize_search_tree
 
 try:
     configure_logging(log_file=logging_config["log_file"], log_level=logging_config["log_level"])

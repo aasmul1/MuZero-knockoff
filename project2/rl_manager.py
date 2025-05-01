@@ -51,10 +51,10 @@ def train_muzero(config=default_config):
     writer.add_hparams(hparam_dict, {'status': 1})
 
     for iteration in tqdm(range(num_iterations), desc="Training iterations"):
-        logger.info(f"Starting iteration {iteration + 1}/{num_iterations}")
+        tqdm.write(f"Starting iteration {iteration + 1}/{num_iterations}")
         iteration_start_time = time.time()
 
-        logger.info(f"Self-play phase: Generating {games_per_iteration} games")
+        tqdm.write(f"Self-play phase: Generating {games_per_iteration} games")
         game_rewards = []
         game_lengths = []
 
@@ -84,7 +84,7 @@ def train_muzero(config=default_config):
             writer.add_scalar('Data/BufferSize', len(replay_buffer.buffer), iteration)
 
         if len(replay_buffer.buffer) > 0:
-            logger.info(f"Training phase: {training_steps_per_iteration} training steps")
+            tqdm.write(f"Training phase: {training_steps_per_iteration} training steps")
             total_losses = []
             policy_losses = []
             value_losses = []
@@ -120,11 +120,11 @@ def train_muzero(config=default_config):
                     'Reward': avg_reward_loss
                 }, iteration)
 
-                logger.info(f"Iteration {iteration + 1}: "
-                            f"Total Loss: {avg_total_loss:.4f}, "
-                            f"Policy: {avg_policy_loss:.4f}, "
-                            f"Value: {avg_value_loss:.4f}, "
-                            f"Reward: {avg_reward_loss:.4f}")
+                tqdm.write(f"Iteration {iteration + 1}: "
+                           f"Total Loss: {avg_total_loss:.4f}, "
+                           f"Policy: {avg_policy_loss:.4f}, "
+                           f"Value: {avg_value_loss:.4f}, "
+                           f"Reward: {avg_reward_loss:.4f}")
             else:
                 logger.warning("No valid loss values for this iteration")
 
@@ -141,7 +141,7 @@ def train_muzero(config=default_config):
             model_path = f"models/muzero_checkpoint_{iteration + 1}.pt"
             try:
                 nnm.save(model_path)
-                logger.info(f"Model checkpoint saved to {model_path}")
+                tqdm.write(f"Model checkpoint saved to {model_path}")
             except Exception as e:
                 logger.error(f"Error saving model checkpoint: {e}")
 

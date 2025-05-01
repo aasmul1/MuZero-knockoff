@@ -7,7 +7,7 @@ from project2.Action import Action
 from project2.config import logging_config
 from project2.models.super_model import Model
 from project2.node import Node
-from project2.utils.visualize_search_tree import visualize_search_tree_with_trajectory
+from project2.utils.visualize import visualize_search_tree_with_trajectory
 
 
 class MCTSPerfectModel:
