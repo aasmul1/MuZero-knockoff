@@ -17,7 +17,7 @@ REPLAY_DISCOUNT = 0.997
 # Catch game parameteres
 CATCH_GRID_WIDTH = 7
 CATCH_GRID_HEIGHT = 7
-PADDLE_SIZE = 2
+PADDLE_SIZE = 1
 MAX_TOTAL_REWARDS = 10  # Maximum number of total rewards before ending game, i.e., fruits catched
 
 # MCTS parameteres
@@ -29,7 +29,7 @@ MCTS_DISCOUNT = 0.997
 
 DISCOUNT = 0.997
 
-# Train muZero config
+# Train MuZero config
 NUM_ITERATIONS = 500
 GAMES_PER_ITERATION = 20
 TRAINING_STEPS_PER_ITERATION = 30  # Have tried 100
@@ -40,3 +40,8 @@ logging_config = {
     "log_level": logging.INFO,
     "plot_backups": False
 }
+
+# MuZero play catch game
+MODEL_TO_LOAD = "model_final_1,55.pt"
+FILE_NAME_PLAYED_GAME_PLOT = "played_game.png"
+FILE_NAME_PLAYED_GAME_GIF = "played_game.gif"
