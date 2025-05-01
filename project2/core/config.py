@@ -21,10 +21,10 @@ PADDLE_SIZE = 1
 MAX_TOTAL_REWARDS = 10  # Maximum number of total rewards before ending game, i.e., fruits catched
 
 # MCTS parameteres
-MCTS_C1 = 1.25
-MCTS_C2 = 200
-SIMULATIONS = 50
-STEPS = 10
+MCTS_C1 = 1.4
+MCTS_C2 = 2000
+SIMULATIONS = 100
+STEPS = 100
 MCTS_DISCOUNT = 1
 
 DISCOUNT = 1
@@ -42,7 +42,7 @@ logging_config = {
 }
 
 # MuZero play catch game
-MODEL_TO_LOAD = "muzero_paddlesize1_0,87.pt"
+MODEL_TO_LOAD = "muzero_1.pt"
 FILE_NAME_PLAYED_GAME_PLOT = "played_game.png"
 FILE_NAME_PLAYED_GAME_GIF = "played_game.gif"
 NUM_GAMES_TO_PLAY = 10

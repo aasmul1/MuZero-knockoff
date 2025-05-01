@@ -5,6 +5,7 @@ from project2.core import config
 from project2.core.mcts import MCTS
 from project2.core.node import Node
 from project2.games.catch_game_state_manager import CatchGameStateManager
+from project2.models.neural_net import NetworkOutput
 from project2.models.neural_net_manager import NeuralNetManager
 from project2.utils.configure_logging import configure_logging
 from project2.utils.visualize import visualize_played_game
@@ -31,7 +32,7 @@ def main():
 
     # Play game
     while n_games < config.NUM_GAMES_TO_PLAY:
-        network_output = nnm.initial_inference(observation_tensor)
+        network_output: NetworkOutput = nnm.initial_inference(observation_tensor)
         root_node = Node(network_output.hidden_state)
         legal_actions = gsm.get_legal_actions(state)
         action = mcts.run_simulations_and_select_action(root_node, legal_actions)
@@ -41,7 +42,8 @@ def main():
         observation_tensor = gsm.state_to_tensor(state)
         states.append(state)
 
-        logger.info(f"New state. Reward {reward}")
+        logger.info(
+            f"New state. Reward {reward}. Predicted reward {[round(v, 1) for v in network_output.reward.tolist()]}, value {[round(v, 1) for v in network_output.value.tolist()]}, policy {[round(v, 1) for v in network_output.policy_logits.tolist()[0]]}")
 
         if done:
             n_games += 1
