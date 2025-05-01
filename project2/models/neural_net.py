@@ -27,19 +27,19 @@ def safe_one_hot(tensor, num_classes):
     # Convert tensor to int64 to ensure it contains valid indices
     if tensor.dtype != torch.int64 and tensor.dtype != torch.long:
         tensor = tensor.to(torch.int64)
-        
+
     # Check if we're on CPU - if so, use the standard function
     if tensor.device.type == "cpu":
         return F.one_hot(tensor, num_classes=num_classes).float()  # Ensure float32
-    
+
     # For DirectML or other devices, manually create one-hot tensor
     # Get tensor shape and add one dimension for one-hot
     shape = list(tensor.shape)
     shape.append(num_classes)
-    
+
     # Create a zero tensor with the right shape (explicitly float32)
     result = torch.zeros(shape, dtype=torch.float32, device=tensor.device)
-    
+
     # Handle different tensor dimensions
     if len(tensor.shape) == 1:
         # For 1D tensors (batch of indices)
@@ -50,7 +50,7 @@ def safe_one_hot(tensor, num_classes):
         # For 0D tensors (single index)
         idx = tensor.item()
         result[idx] = 1.0
-    
+
     return result
 
 
@@ -115,7 +115,6 @@ class MuZeroNetwork(nn.Module):
         value = out[:, -1]
         return policy_logits, value
 
-    
     def transition(self, abstract_state, action):
         """
         Given a latent state and an action, predicts the next latent state and reward.
@@ -123,10 +122,10 @@ class MuZeroNetwork(nn.Module):
         # Ensure abstract_state is float32
         if isinstance(abstract_state, torch.Tensor) and abstract_state.dtype != torch.float32:
             abstract_state = abstract_state.to(dtype=torch.float32)
-            
+
         # Use the safe one-hot function to avoid DirectML scatter issues
         action_one_hot = safe_one_hot(action, num_classes=self.action_space_size)
-        
+
         # Make sure the dimensions match for concatenation
         if len(action_one_hot.shape) > len(abstract_state.shape):
             # If action_one_hot has more dimensions, squeeze it
@@ -134,7 +133,7 @@ class MuZeroNetwork(nn.Module):
         elif len(action_one_hot.shape) < len(abstract_state.shape):
             # If abstract_state has more dimensions, unsqueeze action_one_hot
             action_one_hot = action_one_hot.unsqueeze(0)
-            
+
         x = torch.cat([abstract_state, action_one_hot], dim=-1)
         dynamics_out = self.dynamics_net(x)
         next_state = dynamics_out[:, :self.latent_dim]
@@ -149,7 +148,7 @@ class MuZeroNetwork(nn.Module):
         # Ensure float32
         if isinstance(observation, torch.Tensor) and observation.dtype != torch.float32:
             observation = observation.to(dtype=torch.float32)
-            
+
         abstract_state = self.represent_state(observation)
         policy_logits, value = self.predict(abstract_state)
         reward = torch.zeros_like(value)
@@ -163,7 +162,7 @@ class MuZeroNetwork(nn.Module):
         # Ensure float32
         if isinstance(hidden_state, torch.Tensor) and hidden_state.dtype != torch.float32:
             hidden_state = hidden_state.to(dtype=torch.float32)
-            
+
         next_state, reward = self.transition(hidden_state, action)
         policy_logits, value = self.predict(next_state)
         return NetworkOutput(value, reward, policy_logits, next_state)

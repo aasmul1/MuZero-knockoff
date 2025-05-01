@@ -144,10 +144,10 @@ def visualize_played_game(states: List, plot_file_name="played_game.png", gif_fi
     images = [Image.open(file_path) for file_path in image_paths]
     images[0].save(
         f"plots/{gif_file_name}",
-        save_all=True,
-        append_images=images[1:],
-        duration=0.0001,  # TODO This does not work
-        loop=0
-    )
+        format="GIF", append_images=images,
+        save_all=True, duration=300, loop=0)
+
+    for image_path in image_paths:
+        os.remove(image_path)
 
     logger.info(f"Finished creating gif of played game! plots/{gif_file_name}")

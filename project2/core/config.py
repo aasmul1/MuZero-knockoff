@@ -10,9 +10,9 @@ LEARNING_RATE = 0.001
 # Replay buffer parameters
 REPLAY_BUFFER_SIZE = 10000
 BATCH_SIZE = 128
-NUM_UNROLL_STEPS = 5
+NUM_UNROLL_STEPS = 3
 TD_STEPS = 10
-REPLAY_DISCOUNT = 0.997
+REPLAY_DISCOUNT = 1
 
 # Catch game parameteres
 CATCH_GRID_WIDTH = 7
@@ -21,13 +21,13 @@ PADDLE_SIZE = 1
 MAX_TOTAL_REWARDS = 10  # Maximum number of total rewards before ending game, i.e., fruits catched
 
 # MCTS parameteres
-MCTS_C1 = 1.25
-MCTS_C2 = 19.562
-SIMULATIONS = 50
-STEPS = 10
-MCTS_DISCOUNT = 0.997
+MCTS_C1 = 3
+MCTS_C2 = 2000
+SIMULATIONS = 100
+STEPS = 100
+MCTS_DISCOUNT = 1
 
-DISCOUNT = 0.997
+DISCOUNT = 1
 
 # Train MuZero config
 NUM_ITERATIONS = 500
@@ -42,6 +42,7 @@ logging_config = {
 }
 
 # MuZero play catch game
-MODEL_TO_LOAD = "model_final_1,55.pt"
+MODEL_TO_LOAD = "muzero_2.pt"
 FILE_NAME_PLAYED_GAME_PLOT = "played_game.png"
 FILE_NAME_PLAYED_GAME_GIF = "played_game.gif"
+NUM_GAMES_TO_PLAY = 10
