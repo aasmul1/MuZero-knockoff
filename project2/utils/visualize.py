@@ -6,8 +6,8 @@ import networkx as nx
 import pygraphviz as pgv
 from PIL import Image
 
-from project2.Action import Action
-from project2.node import Node
+from project2.core.Action import Action
+from project2.core.node import Node
 
 
 def visualize_search_tree(search_tree: Set[Node],

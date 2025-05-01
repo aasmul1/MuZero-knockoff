@@ -3,7 +3,7 @@ from typing import Dict, Tuple
 
 import numpy as np
 
-from project2.Action import Action
+from project2.core.Action import Action
 
 
 class Model(ABC):

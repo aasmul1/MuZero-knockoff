@@ -2,7 +2,7 @@ from typing import Tuple, Dict
 
 import numpy as np
 
-from project2.Action import Action
+from project2.core.Action import Action
 from project2.games.catch_game_state_manager import CatchGameStateManager
 from project2.games.generic_game_state_manager import GameStateManager
 from project2.models.super_model import Model

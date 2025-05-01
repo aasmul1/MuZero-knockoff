@@ -11,8 +11,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import our modules
 from games.catch_game_state_manager import CatchGameStateManager
-from neural_net_manager import NeuralNetManager
-import config
+from project2.models.neural_net_manager import NeuralNetManager
+import project2.core.config as config
 
 def collect_self_play_data(net_manager, game_manager, num_games=10, max_steps=100):
     """Collect data from self-play games using the current network for action selection."""
