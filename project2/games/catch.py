@@ -1,5 +1,3 @@
-import secrets
-
 import numpy as np
 from numpy.random import default_rng
 
@@ -24,7 +22,7 @@ class CatchGame:
         self.update_paddle()
 
         # Frukt spawn på topprad, kolonne innenfor [0, width)
-        col = secrets.randbelow(self.width)
+        col = self.rng.integers(self.width)
         assert 0 <= col < self.width, f"Fruit spawn out of bounds: {col}"
         self.fruit_pos = [0, col]
         self.grid[self.fruit_pos[0], self.fruit_pos[1]] = 2
@@ -83,7 +81,7 @@ class CatchGame:
 
             if not self.game_over:
                 # Spawn ny frukt
-                col = secrets.randbelow(self.width)
+                col = self.rng.integers(self.width)
                 assert 0 <= col < self.width, f"Fruit spawn out of bounds: {col}"
                 self.fruit_pos = [0, col]
 

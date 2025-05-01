@@ -2,22 +2,22 @@ import logging
 from copy import deepcopy
 from typing import List
 
-from project2.core.config import logging_config
-from project2.games.catch_game_state_manager import CatchGameStateManager
+from project2.core import config
 from project2.core.mcts_perfect_model import MCTSPerfectModel
-from project2.models.perfect_model import PerfectModel
 from project2.core.node import Node
+from project2.games.catch_game_state_manager import CatchGameStateManager
+from project2.models.perfect_model import PerfectModel
 from project2.utils.configure_logging import configure_logging
 from project2.utils.visualize import visualize_search_tree
 
 try:
-    configure_logging(log_file=logging_config["log_file"], log_level=logging_config["log_level"])
+    configure_logging(log_file=config.logging_config["log_file"], log_level=config.logging_config["log_level"])
 except Exception:
     configure_logging()
 
 logger = logging.getLogger(__name__)
 
-gs_manager = CatchGameStateManager()
+gs_manager = CatchGameStateManager(config)
 gs_initial_state = gs_manager.generate_initial_state()
 gs_available_actions = gs_manager.get_legal_actions(gs_initial_state)
 
